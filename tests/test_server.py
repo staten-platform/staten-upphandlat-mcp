@@ -11,7 +11,7 @@ mcp_mod = pytest.importorskip("mcp")  # noqa: E402
 
 from mcp import ClientSession  # noqa: E402
 from mcp.client.stdio import StdioServerParameters, stdio_client  # noqa: E402
-from mcp.client.streamable_http import streamable_http_client  # noqa: E402
+from mcp.client.streamable_http import streamablehttp_client
 
 
 @pytest.fixture()
@@ -80,7 +80,7 @@ async def test_server_streamable_http(sample_config, monkeypatch):
         deadline = asyncio.get_event_loop().time() + timeout
         while True:
             try:
-                client = await streamable_http_client(url)
+                client = await streamablehttp_client(url)
                 return client
             except Exception:  # noqa: BLE001
                 if asyncio.get_event_loop().time() >= deadline:
