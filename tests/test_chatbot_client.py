@@ -49,9 +49,26 @@ class LLMClient:
                 },
             )
             with urllib.request.urlopen(req, timeout=60) as resp:
-                data = json.load(resp)
+                response_body = resp.read().decode() # Read body once
+                # --- MODIFICATION START ---
+                if self.verbose:
+                    print(f"LLM_CLIENT_RESPONSE_STATUS: {resp.status}", file=sys.stderr)
+                    print(f"LLM_CLIENT_RESPONSE_HEADERS: {resp.headers}", file=sys.stderr)
+                    try:
+                        # Try to pretty-print if it's JSON, otherwise print as is
+                        parsed_response_body = json.loads(response_body)
+                        print(f"LLM_CLIENT_RESPONSE_BODY: {json.dumps(parsed_response_body, indent=2)}", file=sys.stderr)
+                    except json.JSONDecodeError:
+                        print(f"LLM_CLIENT_RESPONSE_BODY: {response_body}", file=sys.stderr)
+                # --- MODIFICATION END ---
+                data = json.loads(response_body) # Use the already read body
             return data["content"][0]["text"]
-        return '{"tool": "list_available_dataframes", "arguments": {}}'
+        # --- MODIFICATION START ---
+        mock_response = '{"tool": "list_available_dataframes", "arguments": {}}'
+        if self.verbose:
+            print(f"LLM_CLIENT_MOCK_RESPONSE: {mock_response}", file=sys.stderr)
+        return mock_response
+        # --- MODIFICATION END ---
 
 
 async def wait_for_server_ready(
