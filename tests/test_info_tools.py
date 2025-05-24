@@ -6,7 +6,6 @@ pl = pytest.importorskip("polars")
 
 from upphandlat_mcp.tools import info_tools  # noqa: E402
 
-
 class DummyCtx:
     def __init__(self, lifespan_context: dict[str, object]):
         self.request_context = types.SimpleNamespace(lifespan_context=lifespan_context)
@@ -69,7 +68,6 @@ async def test_distinct_values(sample_context):
 
 
 rapidfuzz = pytest.importorskip("rapidfuzz")
-
 
 @pytest.mark.asyncio
 async def test_fuzzy_search(sample_context):
