@@ -1,3 +1,5 @@
+"""Streamlit client that lets an LLM pick MCP tools automatically."""
+
 import json
 import os
 from typing import Any
@@ -13,7 +15,7 @@ except Exception:  # pragma: no cover - anthropic might not be installed
 
 
 class LLMClient:
-    """Simple LLM client that can use Anthropic if configured."""
+    """Basic LLM interface with optional Anthropic backend."""
 
     def __init__(self) -> None:
         self.use_anthropic = (
@@ -26,6 +28,8 @@ class LLMClient:
         messages: list[dict[str, str]],
         tools: list[dict[str, Any]] | None = None,
     ) -> str:
+        """Return a tool call JSON string or text response from the LLM."""
+
         if self.client:
             system = next(
                 (m["content"] for m in messages if m["role"] == "system"),
@@ -58,7 +62,7 @@ class LLMClient:
         return json.dumps({"tool": "list_available_dataframes", "arguments": {}})
 
 
-MCP_URL = os.getenv("MCP_URL", "http://localhost:8000/mcp")
+MCP_URL = os.getenv("MCP_URL", "http://localhost:8000/mcp/")
 
 st.title("Upphandlat MCP Chatbot Client")
 
@@ -69,11 +73,9 @@ if "tool_names" not in st.session_state:
             json={"jsonrpc": "2.0", "id": 1, "method": "list_tools"},
             timeout=10.0,
         )
-        res.raise_for_status()
-        data = res.json()
-        tool_data = data.get("result", {}).get("tools", [])
-        st.session_state.tool_names = [t.get("name", "") for t in tool_data]
-    except (httpx.HTTPError, json.JSONDecodeError, KeyError) as exc:
+        tool_data = res.json()["result"]["tools"]
+        st.session_state.tool_names = [t["name"] for t in tool_data]
+    except Exception as exc:
         st.error(f"Failed to fetch tools from MCP server: {exc}")
         st.stop()
 

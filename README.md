@@ -100,6 +100,9 @@ main upphandlat MCP server and a `streamlit_client.py` for manual tool testing.
 For a more natural chat experience there is also a `streamlit_chatbot_client.py`
 where an LLM selects the appropriate tool automatically.
 
+Both clients look for the MCP server at the URL specified by the
+`MCP_URL` environment variable. The default is `http://localhost:8000/mcp/`.
+
 1. Start the MCP server:
 
 ```bash
@@ -117,6 +120,9 @@ streamlit run examples/simple_chat/streamlit_chatbot_client.py
 Open the printed URL in your browser to interact with the server. By default the
 client connects to `http://localhost:8000/mcp`. Set the `MCP_URL` environment
 variable before launching Streamlit if your server runs on a different URL.
+
+Both clients use the `MCP_URL` environment variable to locate the server.
+It defaults to `http://localhost:8000/mcp/`.
 
 ## Claude Desktop Integration
 
