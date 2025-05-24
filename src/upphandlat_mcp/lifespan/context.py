@@ -99,13 +99,18 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[LifespanContext]:
                     else:
                         # Plain text data, needs URL decoding
                         print(f"LIFESPAN_TRACE: URL-decoding plain text data for source '{source.name}'", file=sys.stderr, flush=True)
-                        source_to_read = unquote(actual_data_encoded)
+                        decoded_text_data = unquote(actual_data_encoded)
+                        # Polars needs a file-like object for string data if it's not a path.
+                        # Encode to bytes (e.g., UTF-8) to use BytesIO.
+                        source_to_read = BytesIO(decoded_text_data.encode('utf-8'))
+                        print(f"LIFESPAN_TRACE: Plain text data prepared as BytesIO for source '{source.name}'", file=sys.stderr, flush=True)
                     
                     # Debug print for the prepared data (first 100 chars if string)
-                    preview_data_str = str(source_to_read)
-                    if isinstance(source_to_read, BytesIO):
-                        preview_data_str = "<BytesIO data>" 
-                    print(f"LIFESPAN_TRACE: Prepared data for Polars from data URI for '{source.name}', preview (if str): {preview_data_str[:100]}", file=sys.stderr, flush=True)
+                    # This preview logic might need adjustment if source_to_read is always BytesIO for data URIs
+                    preview_data_str = "<BytesIO data>" # Since it will be BytesIO now
+                    if isinstance(source_to_read, str): # Should not happen for data: URIs if always converted to BytesIO
+                         preview_data_str = source_to_read
+                    print(f"LIFESPAN_TRACE: Prepared data for Polars from data URI for '{source.name}', preview: {preview_data_str[:100] if isinstance(preview_data_str, str) else preview_data_str}", file=sys.stderr, flush=True)
                 else: # http, https, ftp, etc.
                     source_to_read = url_string # Use the original string for http, https etc.
                     print(f"LIFESPAN_TRACE: Reading remote URL for source '{source.name}': {source_to_read}", file=sys.stderr, flush=True)
