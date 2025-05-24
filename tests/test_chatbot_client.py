@@ -72,6 +72,7 @@ async def wait_for_server_ready(
             if exc.code in {404, 405}:
                 return
             last_exception = exc
+
         except urllib.error.URLError as exc:  # noqa: PERF203
             last_exception = exc
         if asyncio.get_event_loop().time() >= deadline:
@@ -109,6 +110,7 @@ async def run_chat_session(server_url: str) -> list[dict[str, str]]:
             return data
 
 
+
 @pytest.fixture()
 def sample_config(tmp_path: Path) -> Path:
     csv_path = tmp_path / "sample.csv"
@@ -128,6 +130,7 @@ def sample_config(tmp_path: Path) -> Path:
     config_path = tmp_path / "config.json"
     config_path.write_text(json.dumps(config))
     return config_path
+
 
 
 @pytest.mark.asyncio
