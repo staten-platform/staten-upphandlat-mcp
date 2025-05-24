@@ -84,7 +84,12 @@ async def test_server_streamable_http(sample_config, monkeypatch):
     # Improved wait_for_server_ready
     async def wait_for_server_ready(process: asyncio.subprocess.Process, base_url: str, mcp_endpoint_path: str = "/mcp/", timeout: float = 20.0): # Increased timeout, added base_url and mcp_endpoint_path
         deadline = asyncio.get_event_loop().time() + timeout
-        check_url = base_url.rstrip('/') + '/' + mcp_endpoint_path.lstrip('/')
+        # Use a lightweight request to the root path for readiness checking.
+        # Accessing the StreamableHTTP endpoint directly opens a streaming
+        # connection, which causes timeouts with simple HTTP clients.  Instead
+        # we hit the server root (expected to return 404) just to verify the
+        # HTTP server is accepting connections.
+        check_url = base_url.rstrip('/') + '/'
         
         print(f"WAIT_FOR_SERVER_DEBUG: Checking server readiness at {check_url}", file=sys.stderr, flush=True)
         last_exception = None
@@ -103,9 +108,12 @@ async def test_server_streamable_http(sample_config, monkeypatch):
                     response = await client.get(
                         check_url,
                         timeout=5.0,
-                        headers={"Accept": "*/*"}  # Explicitly set Accept header
+                        headers={"Accept": "*/*"},
                     )
-                    if 200 <= response.status_code < 300 or response.status_code == 405:
+                    if (
+                        200 <= response.status_code < 300
+                        or response.status_code in {404, 405}
+                    ):
                         print(f"WAIT_FOR_SERVER_DEBUG: Server at {check_url} responded with {response.status_code}. Ready.", file=sys.stderr, flush=True)
                         return  # Server is ready
                     else:
