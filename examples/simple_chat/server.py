@@ -2,6 +2,7 @@
 
 import contextlib
 from collections.abc import AsyncIterator
+from pathlib import Path
 
 from starlette.applications import Starlette
 from starlette.responses import FileResponse
@@ -18,7 +19,8 @@ async def lifespan(app: Starlette) -> AsyncIterator[None]:
 
 async def serve_index(request) -> FileResponse:
     """Return the static chat client."""
-    return FileResponse("chat_client.html")
+    html_path = Path(__file__).with_name("chat_client.html")
+    return FileResponse(html_path)
 
 
 app = Starlette(
