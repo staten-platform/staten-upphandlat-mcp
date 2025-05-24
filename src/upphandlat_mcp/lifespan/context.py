@@ -1,6 +1,9 @@
 import logging
+import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncIterator, TypedDict
+from urllib.parse import unquote, urlparse
 
 import polars as pl
 import yaml
@@ -49,7 +52,26 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[LifespanContext]:
                     f"Polars read_csv options for '{source.name}': {read_options}"
                 )
 
-                df = pl.read_csv(source.url, **read_options)
+                # source.url is a string, potentially a file URI or HTTP/HTTPS URL
+                url_string = source.url
+                parsed_url = urlparse(url_string)
+                source_to_read: str | Path
+
+                if parsed_url.scheme == "file":
+                    # Convert file URI to a Path object for Polars
+                    file_path_str = parsed_url.path
+                    # On Windows, urlparse on "file:///C:/path" gives path "/C:/path"
+                    # Path() needs "C:/path"
+                    if sys.platform == "win32" and file_path_str.startswith("/") and len(file_path_str) > 1 and file_path_str[1] == ":":
+                        file_path_str = file_path_str[1:]
+                    
+                    source_to_read = Path(unquote(file_path_str)) # unquote handles e.g. %20
+                    logger.info(f"Reading local file for source '{source.name}': {source_to_read}")
+                else:
+                    source_to_read = url_string # Use the original string for http, https etc.
+                    logger.info(f"Reading remote URL for source '{source.name}': {source_to_read}")
+                
+                df = pl.read_csv(source_to_read, **read_options)
 
                 logger.info(
                     f"Successfully loaded CSV for '{source.name}'. Shape: {df.shape}. Columns: {df.columns}"
