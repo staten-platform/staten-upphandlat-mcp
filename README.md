@@ -114,7 +114,9 @@ streamlit run examples/simple_chat/streamlit_client.py
 streamlit run examples/simple_chat/streamlit_chatbot_client.py
 ```
 
-Open the printed URL in your browser to interact with the server.
+Open the printed URL in your browser to interact with the server. By default the
+client connects to `http://localhost:8000/mcp`. Set the `MCP_URL` environment
+variable before launching Streamlit if your server runs on a different URL.
 
 ## Claude Desktop Integration
 

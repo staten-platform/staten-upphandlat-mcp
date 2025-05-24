@@ -69,9 +69,11 @@ if "tool_names" not in st.session_state:
             json={"jsonrpc": "2.0", "id": 1, "method": "list_tools"},
             timeout=10.0,
         )
-        tool_data = res.json()["result"]["tools"]
-        st.session_state.tool_names = [t["name"] for t in tool_data]
-    except Exception as exc:
+        res.raise_for_status()
+        data = res.json()
+        tool_data = data.get("result", {}).get("tools", [])
+        st.session_state.tool_names = [t.get("name", "") for t in tool_data]
+    except (httpx.HTTPError, json.JSONDecodeError, KeyError) as exc:
         st.error(f"Failed to fetch tools from MCP server: {exc}")
         st.stop()
 
