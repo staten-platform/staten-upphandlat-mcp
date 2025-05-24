@@ -33,7 +33,7 @@ class LLMClient:
         if self.USE_ANTHROPIC_IN_TEST and self.api_key:
             url = "https://api.anthropic.com/v1/messages"
             payload = {
-                "model": "claude-sonnet-4-20250514",
+                "model": "claude-3-sonnet-20240229",
                 "max_tokens": 256,
                 "messages": messages,
             }
