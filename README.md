@@ -96,7 +96,9 @@ uv run python -m mcp serve src/upphandlat_mcp/server.py:mcp --lifespan-timeout 1
 
 A small example server using the streamable HTTP transport is available in
 `examples/simple_chat`. The directory contains a `server.py` that mounts the
-main upphandlat MCP server and a `streamlit_client.py` for interactive testing.
+main upphandlat MCP server and a `streamlit_client.py` for manual tool testing.
+For a more natural chat experience there is also a `streamlit_chatbot_client.py`
+where an LLM selects the appropriate tool automatically.
 
 1. Start the MCP server:
 
@@ -108,6 +110,8 @@ python examples/simple_chat/server.py
 
 ```bash
 streamlit run examples/simple_chat/streamlit_client.py
+# or
+streamlit run examples/simple_chat/streamlit_chatbot_client.py
 ```
 
 Open the printed URL in your browser to interact with the server.
@@ -147,6 +151,8 @@ In a separate terminal, launch the Streamlit UI:
 
 ```bash
 streamlit run examples/simple_chat/streamlit_client.py
+# or try the LLM-powered version
+streamlit run examples/simple_chat/streamlit_chatbot_client.py
 ```
 
 Open your browser to `http://localhost:8501` to chat with the server.
