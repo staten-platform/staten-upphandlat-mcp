@@ -35,7 +35,10 @@ class ReadCsvOptions(BaseModel):
     )
     schema_overrides: dict[str, str] | None = Field(
         None,
-        description="Dictionary mapping column names to their Polars dtype strings (e.g., {'col_a': 'Utf8'}).",
+        description=(
+            "Dictionary mapping column names to their Polars dtype strings "
+            "(e.g., {'col_a': 'Utf8'})."
+        ),
     )
     has_header: bool = Field(True, description="Whether the CSV file has a header row.")
     encoding: str = Field(
@@ -46,7 +49,10 @@ class ReadCsvOptions(BaseModel):
     )
     infer_schema_length: int | None = Field(
         None,
-        description="Number of rows to infer schema from. If None, Polars default (usually 100) is used.",
+        description=(
+            "Number of rows to infer schema from. "
+            "If None, Polars default (usually 100) is used."
+        ),
     )
 
     def to_polars_args(self) -> dict[str, Any]:
@@ -57,7 +63,8 @@ class ReadCsvOptions(BaseModel):
                 dtype = POLARS_DTYPE_MAP.get(dtype_str)
                 if dtype is None:
                     raise ValueError(
-                        f"Unsupported dtype string '{dtype_str}' in schema_overrides for column '{col}'. "
+                        "Unsupported dtype string "
+                        f"'{dtype_str}' in schema_overrides for column '{col}'. "
                         f"Available: {list(POLARS_DTYPE_MAP.keys())}"
                     )
                 polars_schema[col] = dtype
@@ -83,7 +90,8 @@ class CsvSource(BaseModel):
     def name_must_be_valid_identifier(cls, v: str) -> str:
         if not v.isidentifier():
             raise ValueError(
-                f"Source name '{v}' is not a valid Python identifier. Use letters, numbers, and underscores, not starting with a number."
+                "Source name '" + v + "' is not a valid Python identifier. "
+                "Use letters, numbers, and underscores, not starting with a number."
             )
         return v
 
@@ -98,6 +106,19 @@ class Settings(BaseSettings):
     """
 
     CSV_SOURCES_CONFIG_PATH: Path = PROJECT_ROOT / "csv_sources.yaml"
+    MCP_TRANSPORT: str = Field(
+        "stdio",
+        description="Transport to use for the MCP server. \n"
+        "Accepted values: 'stdio' or 'streamable-http'.",
+    )
+
+    @field_validator("MCP_TRANSPORT")
+    @classmethod
+    def validate_transport(cls, v: str) -> str:
+        valid = {"stdio", "streamable-http"}
+        if v not in valid:
+            raise ValueError(f"MCP_TRANSPORT must be one of {valid}")
+        return v
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

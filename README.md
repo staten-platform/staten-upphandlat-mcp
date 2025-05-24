@@ -38,6 +38,8 @@ The data sources and server identity are configured in `csv_sources.yaml` locate
 
 No `.env` file is strictly required for basic operation if `csv_sources.yaml` is present, but it can be used for other Pydantic settings if needed (e.g., API keys for other services, though not used by this server directly).
 
+The server transport can be configured with the `MCP_TRANSPORT` environment variable. Set it to `streamable-http` to serve over streaming HTTP instead of the default `stdio` transport.
+
 Example `csv_sources.yaml` snippet:
 ```
 toolbox_title: "Upphandlingsdata från Sveriges Upphandlingsmyndighet"
@@ -102,11 +104,14 @@ Replace `[path to repo]` with the absolute path to your local repository directo
         "--directory",
         "[path to repo]", // Example: "/Users/yourname/projects/upphandlat-mcp"
         "run",
-        "python", "-m", "mcp", "run", "src/upphandlat_mcp/server.py:mcp", "--transport", "stdio"
+        "python", "-m", "mcp", "run", "src/upphandlat_mcp/server.py:mcp"
       ],
       "command": "uv"
     },
 ```
+
+Add an `env` section with `MCP_TRANSPORT=streamable-http` if you want the
+server to use streaming HTTP instead of stdio.
 
 ## Contributing
 Contributions are welcome! Please open an issue or submit a pull request.
