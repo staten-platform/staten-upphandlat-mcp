@@ -76,23 +76,30 @@ async def test_server_streamable_http(sample_config, monkeypatch):
         stderr=DEVNULL,
     )
 
-    async def wait_for_server(url: str, timeout: float = 5.0):
+    # Renamed and redefined wait_for_server
+    async def wait_for_server_ready(url: str, timeout: float = 5.0):
         deadline = asyncio.get_event_loop().time() + timeout
         while True:
             try:
-                client = await streamablehttp_client(url)
-                return client
+                # Attempt to establish a full session to confirm server readiness
+                async with streamablehttp_client(url) as (read, write, _):
+                    async with ClientSession(read, write) as session:
+                        await session.initialize()
+                return  # Server is ready
             except Exception:  # noqa: BLE001
                 if asyncio.get_event_loop().time() >= deadline:
                     raise
                 await asyncio.sleep(0.1)
 
     try:
-        client = await wait_for_server("http://127.0.0.1:8000/mcp")
+        server_url = "http://127.0.0.1:8000/mcp"
+        await wait_for_server_ready(server_url) # Wait for the server to be fully operational
 
-        async with client as session:
-            await session.initialize()
-            await _call_list(session)
+        # Connect to the server using the SDK's recommended pattern
+        async with streamablehttp_client(server_url) as (read_stream, write_stream, _):
+            async with ClientSession(read_stream, write_stream) as session:
+                await session.initialize()
+                await _call_list(session)
     finally:
         proc.terminate()
         await proc.wait()
