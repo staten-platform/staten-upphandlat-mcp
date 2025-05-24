@@ -2,9 +2,10 @@ import types
 
 import pytest
 
-pl = pytest.importorskip("polars")
+pl = pytest.importorskip("polars")  # noqa: E402
 
 from upphandlat_mcp.tools import info_tools  # noqa: E402
+
 
 class DummyCtx:
     def __init__(self, lifespan_context: dict[str, object]):

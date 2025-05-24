@@ -1,16 +1,17 @@
 import asyncio
 import os
 import sys
+from asyncio.subprocess import DEVNULL
 
 import pytest
 
-yaml = pytest.importorskip("yaml")
+yaml = pytest.importorskip("yaml")  # noqa: E402
 
-mcp_mod = pytest.importorskip("mcp")
+mcp_mod = pytest.importorskip("mcp")  # noqa: E402
 
 from mcp import ClientSession  # noqa: E402
 from mcp.client.stdio import StdioServerParameters, stdio_client  # noqa: E402
-from mcp.client.streamable_http import streamablehttp_client  # noqa: E402
+from mcp.client.streamable_http import streamable_http_client  # noqa: E402
 
 
 @pytest.fixture()
@@ -60,18 +61,34 @@ async def test_server_streamable_http(sample_config, monkeypatch):
     monkeypatch.setenv("CSV_SOURCES_CONFIG_PATH", str(sample_config))
     monkeypatch.setenv("MCP_TRANSPORT", "streamable-http")
     env = os.environ.copy()
-    env.update({
-        "CSV_SOURCES_CONFIG_PATH": str(sample_config),
-        "MCP_TRANSPORT": "streamable-http",
-    })
+    env.update(
+        {
+            "CSV_SOURCES_CONFIG_PATH": str(sample_config),
+            "MCP_TRANSPORT": "streamable-http",
+        }
+    )
     proc = await asyncio.create_subprocess_exec(
         sys.executable,
         "-m",
         "upphandlat_mcp",
         env=env,
+        stdout=DEVNULL,
+        stderr=DEVNULL,
     )
+
+    async def wait_for_server(url: str, timeout: float = 5.0):
+        deadline = asyncio.get_event_loop().time() + timeout
+        while True:
+            try:
+                client = await streamable_http_client(url)
+                return client
+            except Exception:  # noqa: BLE001
+                if asyncio.get_event_loop().time() >= deadline:
+                    raise
+                await asyncio.sleep(0.1)
+
     try:
-        client = await streamablehttp_client("http://127.0.0.1:8000/mcp")
+        client = await wait_for_server("http://127.0.0.1:8000/mcp")
 
         async with client as session:
             await session.initialize()
