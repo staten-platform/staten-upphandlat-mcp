@@ -36,22 +36,62 @@ class LLMClient:
                     print(f"LLM_CLIENT_ERROR: Failed to initialize Anthropic client: {e}", file=sys.stderr)
                 self.anthropic_client = None # Ensure it's None if init fails
 
-    def get_response(self, messages: list[dict[str, str]]) -> str:
+    def get_response(self, messages_input: list[dict[str, str]]) -> str: # Renamed input param for clarity
         if self.USE_ANTHROPIC_IN_TEST and self.api_key and self.anthropic_client:
-            model_name = "claude-sonnet-4-20250514" # Changed to user-specified model
+            model_name = "claude-sonnet-4-20250514"
             max_tokens_to_sample = 256
 
-            try:
+            # --- MODIFICATION START: Separate system prompt from messages ---
+            system_prompt_content: str | None = None
+            api_messages: list[dict[str, str]] = []
+            for msg in messages_input:
+                if msg.get("role") == "system":
+                    system_prompt_content = msg.get("content")
+                else:
+                    # Ensure only valid roles (like 'user', 'assistant') are passed
+                    if msg.get("role") in ["user", "assistant"]: # Or be more permissive if other roles are expected
+                        api_messages.append(msg)
+                    elif self.verbose:
+                        print(f"LLM_CLIENT_WARNING: Skipping message with unexpected role '{msg.get('role')}' for API call.", file=sys.stderr)
+            
+            if not api_messages:
+                 # This can happen if only a system message was provided, which is invalid for the 'messages' param.
                 if self.verbose:
-                    print(f"LLM_CLIENT_SDK_CALL_PARAMS: model='{model_name}', max_tokens={max_tokens_to_sample}, messages_count={len(messages)}", file=sys.stderr)
-                    # Optionally log full messages if needed, but be wary of size/sensitivity
-                    # print(f"LLM_CLIENT_SDK_MESSAGES: {json.dumps(messages, indent=2)}", file=sys.stderr)
+                    print("LLM_CLIENT_ERROR: No user/assistant messages found after filtering system prompt. Cannot make API call.", file=sys.stderr)
+                # Fall through to mock response
+                # (Alternatively, raise an error or handle as appropriate)
+                # For now, let it fall through to mock.
+                pass # Will lead to mock response path if this block is entered and then try/except is skipped.
+                     # To be more robust, this condition should also lead to the mock response directly.
+                     # Let's adjust the if condition below or the fallback logic.
+                     # For now, if api_messages is empty, the create call might fail or be non-sensical.
+                     # The API likely requires at least one user message.
+            # --- MODIFICATION END ---
 
-                response_obj = self.anthropic_client.messages.create(
-                    model=model_name,
-                    max_tokens=max_tokens_to_sample,
-                    messages=messages,
-                )
+            try:
+                # --- MODIFICATION START: Adjust logging and API call ---
+                if self.verbose:
+                    print(f"LLM_CLIENT_SDK_CALL_PARAMS: model='{model_name}', max_tokens={max_tokens_to_sample}, messages_count={len(api_messages)}, system_prompt_present={'yes' if system_prompt_content else 'no'}", file=sys.stderr)
+                    if system_prompt_content and self.verbose: # Ensure verbose is checked for this print too
+                         print(f"LLM_CLIENT_SDK_SYSTEM_PROMPT: {system_prompt_content}", file=sys.stderr)
+                    # Optionally log full messages if needed, but be wary of size/sensitivity
+                    # print(f"LLM_CLIENT_SDK_MESSAGES: {json.dumps(api_messages, indent=2)}", file=sys.stderr)
+
+                if not api_messages: # Explicitly fall back if no valid messages for the API
+                    if self.verbose:
+                        print("LLM_CLIENT_INFO: No user/assistant messages to send to API, falling back to mock.", file=sys.stderr)
+                    raise ValueError("No user/assistant messages to send to API.") # This will be caught by `except Exception`
+
+                create_params = {
+                    "model": model_name,
+                    "max_tokens": max_tokens_to_sample,
+                    "messages": api_messages,
+                }
+                if system_prompt_content is not None: # Pass system only if it exists
+                    create_params["system"] = system_prompt_content
+                
+                response_obj = self.anthropic_client.messages.create(**create_params)
+                # --- MODIFICATION END ---
 
                 if self.verbose:
                     print(f"LLM_CLIENT_SDK_RESPONSE_ID: {response_obj.id}", file=sys.stderr)
@@ -67,9 +107,9 @@ class LLMClient:
                 if self.verbose:
                     print(f"LLM_CLIENT_SDK_ERROR: APIError during Anthropic call: {e}", file=sys.stderr)
                 # Fall through to mock response on API error
-            except Exception as e: # Catch any other unexpected error
+            except Exception as e: # Catch any other unexpected error, including our ValueError
                 if self.verbose:
-                    print(f"LLM_CLIENT_SDK_UNEXPECTED_ERROR: {e}", file=sys.stderr)
+                    print(f"LLM_CLIENT_SDK_UNEXPECTED_ERROR or PRECONDITION_FAIL: {e}", file=sys.stderr)
                 # Fall through to mock response
 
         # Fallback to mock response if API is not used, key is missing, client init failed, or API call failed
