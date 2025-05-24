@@ -38,7 +38,7 @@ class LLMClient:
 
     def get_response(self, messages: list[dict[str, str]]) -> str:
         if self.USE_ANTHROPIC_IN_TEST and self.api_key and self.anthropic_client:
-            model_name = "claude-3-sonnet-20240229" # Using a known valid model
+            model_name = "claude-sonnet-4-20250514" # Changed to user-specified model
             max_tokens_to_sample = 256
 
             try:
