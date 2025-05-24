@@ -22,6 +22,9 @@ class LLMClient:
     def __init__(self) -> None:
         self.USE_ANTHROPIC_IN_TEST = os.getenv("USE_ANTHROPIC_IN_TEST") == "1"
         self.api_key = os.getenv("ANTHROPIC_API_KEY")
+        # --- MODIFICATION START ---
+        self.verbose = os.getenv("TEST_INTEGRATION_VERBOSE") == "1"
+        # --- MODIFICATION END ---
 
     def get_response(self, messages: list[dict[str, str]]) -> str:
         if self.USE_ANTHROPIC_IN_TEST and self.api_key:
@@ -31,6 +34,11 @@ class LLMClient:
                 "max_tokens": 256,
                 "messages": messages,
             }
+            # --- MODIFICATION START ---
+            if self.verbose:
+                print(f"LLM_CLIENT_REQUEST_URL: {url}", file=sys.stderr)
+                print(f"LLM_CLIENT_REQUEST_PAYLOAD: {json.dumps(payload, indent=2)}", file=sys.stderr)
+            # --- MODIFICATION END ---
             req = urllib.request.Request(
                 url,
                 data=json.dumps(payload).encode(),
@@ -85,6 +93,10 @@ async def wait_for_server_ready(
 async def run_chat_session(server_url: str) -> list[dict[str, str]]:
     """Run a minimal chat session calling one tool."""
     llm_client = LLMClient()
+    # --- MODIFICATION START ---
+    verbose = os.getenv("TEST_INTEGRATION_VERBOSE") == "1"
+    # --- MODIFICATION END ---
+
     async with streamablehttp_client(server_url) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
@@ -97,9 +109,30 @@ async def run_chat_session(server_url: str) -> list[dict[str, str]]:
             messages = [system_msg, {"role": "user", "content": "what dataframes"}]
             llm_resp = llm_client.get_response(messages)
             tool_call = json.loads(llm_resp)
+
+            # --- MODIFICATION START ---
+            if verbose:
+                print(f"MCP_CLIENT_TOOL_CALL_SENT: tool='{tool_call['tool']}', args={tool_call['arguments']}", file=sys.stderr)
+            # --- MODIFICATION END ---
+
             call_result = await session.call_tool(
                 tool_call["tool"], tool_call["arguments"]
             )
+
+            # --- MODIFICATION START ---
+            if verbose:
+                # Be careful with potentially large content.
+                # For now, let's log the type and number of items.
+                # If content items have a 'text' attribute, log that.
+                logged_content = []
+                for item in call_result.content:
+                    if hasattr(item, 'text'):
+                        logged_content.append(item.text)
+                    else:
+                        logged_content.append(str(item)) # Fallback to string representation
+                print(f"MCP_CLIENT_TOOL_CALL_RESULT_CONTENT: {logged_content}", file=sys.stderr)
+            # --- MODIFICATION END ---
+
             data: list[dict[str, str]] = []
             for item in call_result.content:
                 if hasattr(item, "text"):
