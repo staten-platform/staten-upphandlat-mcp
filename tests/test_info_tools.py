@@ -70,7 +70,6 @@ async def test_distinct_values(sample_context):
 
 rapidfuzz = pytest.importorskip("rapidfuzz")
 
-
 @pytest.mark.asyncio
 async def test_fuzzy_search(sample_context):
     ctx = DummyCtx(sample_context)

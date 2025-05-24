@@ -42,6 +42,17 @@ pythonVersion = "3.13"
 reportMissingImports = "warning"
 reportTypedDictNotRequiredAccess = "none"
 
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.3.3",
+    "pytest-asyncio>=0.21.0",
+    "ruff>=0.6.9",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"

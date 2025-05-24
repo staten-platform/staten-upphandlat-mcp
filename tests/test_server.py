@@ -89,6 +89,7 @@ async def test_server_streamable_http(sample_config, monkeypatch):
 
     try:
         client = await wait_for_server("http://127.0.0.1:8000/mcp")
+
         async with client as session:
             await session.initialize()
             await _call_list(session)
