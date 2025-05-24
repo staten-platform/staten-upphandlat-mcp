@@ -24,7 +24,7 @@ def sample_config(tmp_path):
         "sources": [
             {
                 "name": "sample",
-                "url": str(csv_path),
+                "url": csv_path.as_uri(),
                 "description": "Sample dataset",
                 "read_csv_options": {"separator": ";"},
             }
