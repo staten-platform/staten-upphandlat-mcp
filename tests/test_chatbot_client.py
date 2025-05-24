@@ -190,11 +190,42 @@ def sample_config(tmp_path: Path) -> Path:
 async def test_chatbot_integration(
     sample_config: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # Set environment variables for LLMClient and run_chat_session
+    # Ensure verbose logging is enabled for this test
+    monkeypatch.setenv("TEST_INTEGRATION_VERBOSE", "1")
+
+    # Propagate USE_ANTHROPIC_IN_TEST from the pytest runner's environment
+    # If not set in the runner's env, LLMClient will see it as None, and USE_ANTHROPIC_IN_TEST == "1" will be false.
+    use_anthropic_env = os.environ.get("USE_ANTHROPIC_IN_TEST")
+    if use_anthropic_env is not None:
+        monkeypatch.setenv("USE_ANTHROPIC_IN_TEST", use_anthropic_env)
+    else:
+        # If you want to default to "0" or "1" if not set, you can do it here.
+        # For now, if it's not in the parent env, it won't be set in the test env,
+        # and LLMClient's os.getenv("USE_ANTHROPIC_IN_TEST") == "1" will be False.
+        # Alternatively, to ensure it's explicitly "0" if not "1":
+        # monkeypatch.setenv("USE_ANTHROPIC_IN_TEST", "1" if use_anthropic_env == "1" else "0")
+        pass # Let it be unset if not in parent env, LLMClient handles None
+
+    # Propagate ANTHROPIC_API_KEY from the pytest runner's environment
+    # If not set in the runner's env, LLMClient will see self.api_key as None.
+    anthropic_api_key_env = os.environ.get("ANTHROPIC_API_KEY")
+    if anthropic_api_key_env is not None:
+        monkeypatch.setenv("ANTHROPIC_API_KEY", anthropic_api_key_env)
+    else:
+        # If ANTHROPIC_API_KEY is not in the parent env, it will not be set in the test env.
+        # LLMClient's self.api_key will be None.
+        pass
+
+    # Set environment variables for the subprocess (upphandlat_mcp server)
     monkeypatch.setenv("CSV_SOURCES_CONFIG_PATH", str(sample_config))
-    monkeypatch.setenv("MCP_TRANSPORT", "streamable-http")
-    env = os.environ.copy()
+    monkeypatch.setenv("MCP_TRANSPORT", "streamable-http") # This is for the test's direct MCP interaction if any, also for subprocess.
+
+    # Environment for the subprocess
+    env = os.environ.copy() # Start with current pytest process env (which now includes monkeypatched vars)
     env.update(
         {
+            # These are specifically for the subprocess
             "CSV_SOURCES_CONFIG_PATH": str(sample_config),
             "MCP_TRANSPORT": "streamable-http",
             "POLARS_MAX_THREADS": "1",
