@@ -113,5 +113,23 @@ Replace `[path to repo]` with the absolute path to your local repository directo
 Add an `env` section with `MCP_TRANSPORT=streamable-http` if you want the
 server to use streaming HTTP instead of stdio.
 
+## Example Chat Application
+
+The `examples/simple_chat` directory provides a minimal chat demo.
+
+Start the server:
+
+```bash
+python examples/simple_chat/server.py
+```
+
+In a separate terminal, launch the Streamlit UI:
+
+```bash
+streamlit run examples/simple_chat/streamlit_client.py
+```
+
+Open your browser to `http://localhost:8501` to chat with the server.
+
 ## Contributing
 Contributions are welcome! Please open an issue or submit a pull request.

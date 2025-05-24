@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Simple MCP Chat</title>
+    <style>
+      body { font-family: sans-serif; }
+      #chat { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; }
+      #chat div { margin-bottom: 4px; }
+    </style>
+  </head>
+  <body>
+    <div id="chat"></div>
+    <form id="chat-form">
+      <input id="message" autocomplete="off" />
+      <button type="submit">Send</button>
+    </form>
+    <script>
+      const chat = document.getElementById('chat');
+      const form = document.getElementById('chat-form');
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const input = document.getElementById('message');
+        const text = input.value;
+        input.value = '';
+        chat.innerHTML += `<div><strong>You:</strong> ${text}</div>`;
+        const res = await fetch('/mcp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'call_tool',
+            params: { name: 'echo', arguments: { message: text } }
+          })
+        });
+        const data = await res.json();
+        chat.innerHTML += `<div><strong>Server:</strong> ${data.result.content[0].text}</div>`;
+      });
+    </script>
+  </body>
+</html>
