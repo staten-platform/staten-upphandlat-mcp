@@ -66,11 +66,10 @@ async def wait_for_server_ready(
             status = await asyncio.to_thread(
                 lambda: urllib.request.urlopen(check_url, timeout=5).getcode()
             )
-            if HTTP_OK <= status < HTTP_MULT_CHOICE or status in {404, 405}:
+            if HTTP_OK <= status < HTTP_MULT_CHOICE:
                 return
         except urllib.error.HTTPError as exc:  # noqa: PERF203
-            status = exc.code
-            if HTTP_OK <= status < HTTP_MULT_CHOICE or status in {404, 405}:
+            if exc.code in {404, 405}:
                 return
             last_exception = exc
 
@@ -98,8 +97,18 @@ async def run_chat_session(server_url: str) -> list[dict[str, str]]:
             messages = [system_msg, {"role": "user", "content": "what dataframes"}]
             llm_resp = llm_client.get_response(messages)
             tool_call = json.loads(llm_resp)
-            result = await session.call_tool(tool_call["tool"], tool_call["arguments"])
-            return result.content
+            call_result = await session.call_tool(
+                tool_call["tool"], tool_call["arguments"]
+            )
+            data: list[dict[str, str]] = []
+            for item in call_result.content:
+                if hasattr(item, "text"):
+                    try:
+                        data.append(json.loads(item.text))
+                    except json.JSONDecodeError:
+                        data.append({"text": item.text})
+            return data
+
 
 
 @pytest.fixture()
