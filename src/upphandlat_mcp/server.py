@@ -38,7 +38,7 @@ mcp.tool()(aggregate_data)
 def run_mcp() -> None:
     """Run the MCP server using the configured transport."""
 
-    transport = app_settings.MCP_TRANSPORT
+    transport: str = app_settings.MCP_TRANSPORT
     logger.info(f"Starting MCP server '{mcp.name}' on {transport}...")
     try:
         mcp.run(transport=transport)

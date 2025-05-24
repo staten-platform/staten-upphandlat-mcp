@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import polars as pl
 from pydantic import BaseModel, Field, field_validator
@@ -106,8 +106,8 @@ class Settings(BaseSettings):
     """
 
     CSV_SOURCES_CONFIG_PATH: Path = PROJECT_ROOT / "csv_sources.yaml"
-    MCP_TRANSPORT: str = Field(
-        "stdio",
+    MCP_TRANSPORT: Literal["stdio", "streamable-http"] = Field(
+        default="stdio",
         description="Transport to use for the MCP server. \n"
         "Accepted values: 'stdio' or 'streamable-http'.",
     )
