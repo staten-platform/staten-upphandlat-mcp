@@ -46,9 +46,12 @@ async def _call_list(sample_session):
 async def test_server_stdio(sample_config, monkeypatch):
     monkeypatch.setenv("CSV_SOURCES_CONFIG_PATH", str(sample_config))
     monkeypatch.setenv("MCP_TRANSPORT", "stdio")
+    monkeypatch.setenv("POLARS_MAX_THREADS", "1") # Control Polars threading
+
     server_params = StdioServerParameters(
         command=sys.executable,
         args=["-m", "upphandlat_mcp"],
+        env=os.environ.copy(), # Ensure subprocess inherits env including monkeypatched vars
     )
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
@@ -65,6 +68,7 @@ async def test_server_streamable_http(sample_config, monkeypatch):
         {
             "CSV_SOURCES_CONFIG_PATH": str(sample_config),
             "MCP_TRANSPORT": "streamable-http",
+            "POLARS_MAX_THREADS": "1", # Control Polars threading
         }
     )
     proc = await asyncio.create_subprocess_exec(
@@ -83,8 +87,8 @@ async def test_server_streamable_http(sample_config, monkeypatch):
             if proc.returncode is not None:
                 # Attempt to read any final output if process exited
                 stdout, stderr = await proc.communicate()
-                print(f"Server process stdout: {stdout.decode(errors='ignore') if stdout else 'None'}")
-                print(f"Server process stderr: {stderr.decode(errors='ignore') if stderr else 'None'}")
+                print(f"WAIT_FOR_SERVER_DEBUG: Server process stdout: {stdout.decode(errors='ignore') if stdout else 'None'}", file=sys.stderr, flush=True)
+                print(f"WAIT_FOR_SERVER_DEBUG: Server process stderr: {stderr.decode(errors='ignore') if stderr else 'None'}", file=sys.stderr, flush=True)
                 raise RuntimeError(f"Server process exited prematurely with code {proc.returncode}")
 
             try:
@@ -92,20 +96,30 @@ async def test_server_streamable_http(sample_config, monkeypatch):
                 async with streamablehttp_client(url) as (read, write, _):
                     async with ClientSession(read, write) as session:
                         await session.initialize()
-                print(f"Server at {url} is ready.") # Confirmation message
+                print(f"WAIT_FOR_SERVER_DEBUG: Server at {url} is ready.", file=sys.stderr, flush=True)
                 return  # Server is ready
             except ConnectionRefusedError:
-                print(f"Connection to {url} refused. Retrying...")
+                # This is expected initially, so don't make it too noisy unless debugging deep
+                if asyncio.get_event_loop().time() < deadline - (timeout * 0.8): # Only print for first 20% of attempts
+                    print(f"WAIT_FOR_SERVER_DEBUG: Connection to {url} refused. Retrying...", file=sys.stderr, flush=True)
             except Exception as e:  # noqa: BLE001
-                print(f"Error connecting to {url}: {type(e).__name__} - {e}. Retrying...")
+                print(f"WAIT_FOR_SERVER_DEBUG: Error connecting to {url}: {type(e).__name__} - {e}. Retrying...", file=sys.stderr, flush=True)
 
                 if asyncio.get_event_loop().time() >= deadline:
+                    print(f"WAIT_FOR_SERVER_DEBUG: Timeout waiting for server at {url}. Process alive: {proc.returncode is None}", file=sys.stderr, flush=True)
                     # Try to get more info from the process if it's still running on timeout
                     if proc.returncode is None: # Check if still running before communicate
-                        stdout, stderr = await proc.communicate()
-                        print(f"Server stdout on timeout: {stdout.decode(errors='ignore') if stdout else 'None'}")
-                        print(f"Server stderr on timeout: {stderr.decode(errors='ignore') if stderr else 'None'}")
-                    raise
+                        proc.terminate() # Terminate the process
+                        try:
+                            # Wait for a short period for termination and capture output
+                            s_out, s_err = await asyncio.wait_for(proc.communicate(), timeout=2.0)
+                            print(f"WAIT_FOR_SERVER_DEBUG: Server stdout on forced terminate: {s_out.decode(errors='ignore') if s_out else 'None'}", file=sys.stderr, flush=True)
+                            print(f"WAIT_FOR_SERVER_DEBUG: Server stderr on forced terminate: {s_err.decode(errors='ignore') if s_err else 'None'}", file=sys.stderr, flush=True)
+                        except asyncio.TimeoutError:
+                            print("WAIT_FOR_SERVER_DEBUG: Timeout during communicate after terminate.", file=sys.stderr, flush=True)
+                        except Exception as comm_exc: # pylint: disable=broad-except
+                            print(f"WAIT_FOR_SERVER_DEBUG: Error during communicate after terminate: {comm_exc}", file=sys.stderr, flush=True)
+                    raise RuntimeError(f"Server at {url} did not become ready in time (timeout: {timeout}s) due to: {e}")
                 await asyncio.sleep(0.2) # Slightly longer sleep
 
     try:
