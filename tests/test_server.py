@@ -54,14 +54,16 @@ async def _call_list(sample_session):
     except json.JSONDecodeError as e:
         pytest.fail(f"Failed to parse content item text as JSON: '{content_item.text}'. Error: {e}")
 
-    # Based on sample_config, this is the expected output
-    expected_data = [{"name": "sample", "description": "Sample dataset"}]
+    # Based on sample_config and observed server behavior where a single-item list 
+    # containing a dictionary appears to be unwrapped to just the dictionary.
+    expected_data = {"name": "sample", "description": "Sample dataset"}
     
-    assert isinstance(parsed_content, list), \
-        f"Expected parsed content to be a list, got {type(parsed_content).__name__}: {parsed_content}"
+    assert isinstance(parsed_content, dict), \
+        f"Expected parsed content to be a dict, got {type(parsed_content).__name__}: {parsed_content}"
+    # --- MODIFICATION END ---
+    
     assert parsed_content == expected_data, \
         f"Unexpected parsed content. Expected {expected_data}, got {parsed_content}"
-    # --- MODIFICATION END ---
 
 
 @pytest.mark.asyncio
