@@ -1,18 +1,13 @@
+"""Example server mounting the upphandlat MCP application."""
+
 import contextlib
 from collections.abc import AsyncIterator
 
-from mcp.server.fastmcp import FastMCP
 from starlette.applications import Starlette
 from starlette.responses import FileResponse
 from starlette.routing import Mount, Route
 
-mcp = FastMCP("SimpleChat", stateless_http=True, json_response=True)
-
-
-@mcp.tool()
-def echo(message: str) -> str:
-    """Echo a message back to the caller."""
-    return f"You said: {message}"
+from upphandlat_mcp.server import mcp
 
 
 @contextlib.asynccontextmanager

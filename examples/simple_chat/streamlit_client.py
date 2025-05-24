@@ -1,42 +1,53 @@
+"""Streamlit client for interacting with the upphandlat MCP server."""
+
+import json
+
 import httpx
 import streamlit as st
 
-st.title("Simple MCP Chat")
+st.title("Upphandlat MCP Client")
 
-# Initialize message history
+MCP_URL = "http://localhost:8000/mcp"
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Display previous messages
 for sender, text in st.session_state.messages:
     with st.chat_message(sender):
         st.write(text)
 
-prompt = st.chat_input("Say something")
-if prompt:
-    # Add user message
-    st.session_state.messages.append(("user", prompt))
-    with st.chat_message("user"):
-        st.write(prompt)
+with st.form("tool_form"):
+    tool_name = st.text_input("Tool name")
+    args_text = st.text_area("Arguments (JSON)", "{}")
+    submitted = st.form_submit_button("Call tool")
 
-    with st.spinner("Waiting for response..."):
-        res = httpx.post(
-            "http://localhost:8000/mcp",
-            json={
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "call_tool",
-                "params": {"name": "echo", "arguments": {"message": prompt}},
-            },
-            timeout=10.0,
-        )
-        data = res.json()
-        reply = data["result"]["content"][0]["text"]
+if submitted and tool_name:
+    try:
+        args = json.loads(args_text or "{}")
+    except json.JSONDecodeError as exc:
+        st.error(f"Invalid JSON: {exc}")
+    else:
+        user_msg = f"call_tool {tool_name} {args}".strip()
+        st.session_state.messages.append(("user", user_msg))
+        with st.chat_message("user"):
+            st.write(user_msg)
 
-    # Add server message
-    st.session_state.messages.append(("server", reply))
-    with st.chat_message("server"):
-        st.write(reply)
+        with st.spinner("Waiting for response..."):
+            res = httpx.post(
+                MCP_URL,
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "call_tool",
+                    "params": {"name": tool_name, "arguments": args},
+                },
+                timeout=30.0,
+            )
+            reply = res.json().get("result")
 
-    st.rerun()
+        st.session_state.messages.append(("server", str(reply)))
+        with st.chat_message("server"):
+            st.write(reply)
+
+        st.rerun()
 
