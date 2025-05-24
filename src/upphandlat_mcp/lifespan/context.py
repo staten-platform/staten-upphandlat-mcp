@@ -1,6 +1,8 @@
+import base64
 import logging
 import sys
 from contextlib import asynccontextmanager
+from io import BytesIO
 from pathlib import Path
 from typing import AsyncIterator, TypedDict
 from urllib.parse import unquote, urlparse
@@ -58,7 +60,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[LifespanContext]:
                 print(f"LIFESPAN_TRACE: Parsing URL for source '{source.name}': {source.url}", file=sys.stderr, flush=True)
                 url_string = source.url
                 parsed_url = urlparse(url_string)
-                source_to_read: str | Path
+                source_to_read: str | Path | BytesIO # Ensure type hint accommodates BytesIO
 
                 if parsed_url.scheme == "file":
                     # Convert file URI to a Path object for Polars
@@ -70,11 +72,45 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[LifespanContext]:
                     
                     source_to_read = Path(unquote(file_path_str)) # unquote handles e.g. %20
                     print(f"LIFESPAN_TRACE: Reading local file for source '{source.name}': {source_to_read}", file=sys.stderr, flush=True)
-                else:
+                elif parsed_url.scheme == "data":
+                    print(f"LIFESPAN_TRACE: Processing data URI for source '{source.name}'", file=sys.stderr, flush=True)
+                    # parsed_url.path for a data URI is like: <mediatype>[;base64],<data>
+                    # e.g., text/csv,header1%2Cheader2%0Avalue1%2Cvalue2
+                    # or text/csv;base64,SGVhZGVyMSxIZWFkZXIyDQpWYWx1ZTEsVmFsdWUyDQo=
+                    
+                    uri_path_content = parsed_url.path
+                    try:
+                        media_type_and_encoding, actual_data_encoded = uri_path_content.split(',', 1)
+                    except ValueError:
+                        # This means there was no comma, which is invalid for a data URI with data
+                        print(f"LIFESPAN_ERROR_STDERR: Invalid data URI format for source '{source.name}': missing comma separator in '{uri_path_content}'", file=sys.stderr, flush=True)
+                        raise ValueError(f"Invalid data URI format for source '{source.name}'")
+
+                    if "base64" in media_type_and_encoding.lower():
+                        print(f"LIFESPAN_TRACE: Decoding base64 data for source '{source.name}'", file=sys.stderr, flush=True)
+                        try:
+                            decoded_bytes = base64.b64decode(actual_data_encoded)
+                            # Polars can read directly from BytesIO, which is good for binary or non-UTF8 text
+                            source_to_read = BytesIO(decoded_bytes)
+                            print(f"LIFESPAN_TRACE: Base64 data prepared as BytesIO for source '{source.name}'", file=sys.stderr, flush=True)
+                        except base64.binascii.Error as b64_error:
+                            print(f"LIFESPAN_ERROR_STDERR: Base64 decoding failed for source '{source.name}': {b64_error}", file=sys.stderr, flush=True)
+                            raise ValueError(f"Base64 decoding failed for source '{source.name}'") from b64_error
+                    else:
+                        # Plain text data, needs URL decoding
+                        print(f"LIFESPAN_TRACE: URL-decoding plain text data for source '{source.name}'", file=sys.stderr, flush=True)
+                        source_to_read = unquote(actual_data_encoded)
+                    
+                    # Debug print for the prepared data (first 100 chars if string)
+                    preview_data_str = str(source_to_read)
+                    if isinstance(source_to_read, BytesIO):
+                        preview_data_str = "<BytesIO data>" 
+                    print(f"LIFESPAN_TRACE: Prepared data for Polars from data URI for '{source.name}', preview (if str): {preview_data_str[:100]}", file=sys.stderr, flush=True)
+                else: # http, https, ftp, etc.
                     source_to_read = url_string # Use the original string for http, https etc.
                     print(f"LIFESPAN_TRACE: Reading remote URL for source '{source.name}': {source_to_read}", file=sys.stderr, flush=True)
                 
-                print(f"LIFESPAN_TRACE: Calling pl.read_csv for source '{source.name}' with source: {source_to_read}", file=sys.stderr, flush=True)
+                print(f"LIFESPAN_TRACE: Calling pl.read_csv for source '{source.name}' with source type: {type(source_to_read)}", file=sys.stderr, flush=True)
                 df = pl.read_csv(source_to_read, **read_options)
                 print(f"LIFESPAN_TRACE: pl.read_csv completed for source '{source.name}'. Shape: {df.shape}", file=sys.stderr, flush=True)
 
