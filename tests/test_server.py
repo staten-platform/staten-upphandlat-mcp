@@ -12,6 +12,7 @@ mcp_mod = pytest.importorskip("mcp")  # noqa: E402
 from mcp import ClientSession  # noqa: E402
 from mcp.client.stdio import StdioServerParameters, stdio_client  # noqa: E402
 from mcp.client.streamable_http import streamablehttp_client
+import httpx # Add httpx import
 
 
 @pytest.fixture()
@@ -81,57 +82,71 @@ async def test_server_streamable_http(sample_config, monkeypatch):
     )
 
     # Improved wait_for_server_ready
-    async def wait_for_server_ready(proc: asyncio.subprocess.Process, url: str, timeout: float = 10.0): # Increased timeout
+    async def wait_for_server_ready(process: asyncio.subprocess.Process, base_url: str, mcp_endpoint_path: str = "/mcp/", timeout: float = 20.0): # Increased timeout, added base_url and mcp_endpoint_path
         deadline = asyncio.get_event_loop().time() + timeout
-        while True:
-            if proc.returncode is not None:
-                # Attempt to read any final output if process exited
-                stdout, stderr = await proc.communicate()
-                print(f"WAIT_FOR_SERVER_DEBUG: Server process stdout: {stdout.decode(errors='ignore') if stdout else 'None'}", file=sys.stderr, flush=True)
-                print(f"WAIT_FOR_SERVER_DEBUG: Server process stderr: {stderr.decode(errors='ignore') if stderr else 'None'}", file=sys.stderr, flush=True)
-                raise RuntimeError(f"Server process exited prematurely with code {proc.returncode}")
+        check_url = base_url.rstrip('/') + '/' + mcp_endpoint_path.lstrip('/')
+        
+        print(f"WAIT_FOR_SERVER_DEBUG: Checking server readiness at {check_url}", file=sys.stderr, flush=True)
+        last_exception = None
 
-            try:
-                # Attempt to establish a full session to confirm server readiness
-                async with streamablehttp_client(url) as (read, write, _):
-                    async with ClientSession(read, write) as session:
-                        await session.initialize()
-                print(f"WAIT_FOR_SERVER_DEBUG: Server at {url} is ready.", file=sys.stderr, flush=True)
-                return  # Server is ready
-            except ConnectionRefusedError:
-                # This is expected initially, so don't make it too noisy unless debugging deep
-                if asyncio.get_event_loop().time() < deadline - (timeout * 0.8): # Only print for first 20% of attempts
-                    print(f"WAIT_FOR_SERVER_DEBUG: Connection to {url} refused. Retrying...", file=sys.stderr, flush=True)
-            except Exception as e:  # noqa: BLE001
-                print(f"WAIT_FOR_SERVER_DEBUG: Error connecting to {url}: {type(e).__name__} - {e}. Retrying...", file=sys.stderr, flush=True)
+        async with httpx.AsyncClient() as client:
+            while True:
+                if process.returncode is not None:
+                    # Attempt to read any final output if process exited
+                    stdout, stderr = await process.communicate()
+                    print(f"WAIT_FOR_SERVER_DEBUG: Server process stdout: {stdout.decode(errors='ignore') if stdout else 'None'}", file=sys.stderr, flush=True)
+                    print(f"WAIT_FOR_SERVER_DEBUG: Server process stderr: {stderr.decode(errors='ignore') if stderr else 'None'}", file=sys.stderr, flush=True)
+                    raise RuntimeError(f"Server process exited prematurely with code {process.returncode}")
+
+                try:
+                    # Perform a simple GET request to the MCP endpoint.
+                    response = await client.get(check_url, timeout=5.0) # Short timeout for individual attempt
+                    if 200 <= response.status_code < 300 or response.status_code == 405:
+                        print(f"WAIT_FOR_SERVER_DEBUG: Server at {check_url} responded with {response.status_code}. Ready.", file=sys.stderr, flush=True)
+                        return  # Server is ready
+                    else:
+                        print(f"WAIT_FOR_SERVER_DEBUG: Server at {check_url} responded with {response.status_code}. Retrying...", file=sys.stderr, flush=True)
+                        last_exception = httpx.HTTPStatusError(f"Server responded with {response.status_code}", request=response.request, response=response)
+
+                except httpx.RequestError as e:
+                    last_exception = e
+                    if asyncio.get_event_loop().time() < deadline - (timeout * 0.8): # Only print for first 20% of attempts
+                        print(f"WAIT_FOR_SERVER_DEBUG: HTTP request to {check_url} failed: {type(e).__name__}. Retrying...", file=sys.stderr, flush=True)
+                # except Exception as e:  # noqa: BLE001 # Catch other unexpected errors during check
+                #     last_exception = e
+                #     print(f"WAIT_FOR_SERVER_DEBUG: Error connecting to {check_url}: {type(e).__name__} - {e}. Retrying...", file=sys.stderr, flush=True)
+
 
                 if asyncio.get_event_loop().time() >= deadline:
-                    print(f"WAIT_FOR_SERVER_DEBUG: Timeout waiting for server at {url}. Process alive: {proc.returncode is None}", file=sys.stderr, flush=True)
-                    # Try to get more info from the process if it's still running on timeout
-                    if proc.returncode is None: # Check if still running before communicate
-                        proc.terminate() # Terminate the process
+                    print(f"WAIT_FOR_SERVER_DEBUG: Timeout waiting for server at {check_url}. Process alive: {process.returncode is None}", file=sys.stderr, flush=True)
+                    if process.returncode is None:
+                        process.terminate()
                         try:
-                            # Wait for a short period for termination and capture output
-                            s_out, s_err = await asyncio.wait_for(proc.communicate(), timeout=2.0)
+                            s_out, s_err = await asyncio.wait_for(process.communicate(), timeout=2.0)
                             print(f"WAIT_FOR_SERVER_DEBUG: Server stdout on forced terminate: {s_out.decode(errors='ignore') if s_out else 'None'}", file=sys.stderr, flush=True)
                             print(f"WAIT_FOR_SERVER_DEBUG: Server stderr on forced terminate: {s_err.decode(errors='ignore') if s_err else 'None'}", file=sys.stderr, flush=True)
                         except asyncio.TimeoutError:
                             print("WAIT_FOR_SERVER_DEBUG: Timeout during communicate after terminate.", file=sys.stderr, flush=True)
                         except Exception as comm_exc: # pylint: disable=broad-except
                             print(f"WAIT_FOR_SERVER_DEBUG: Error during communicate after terminate: {comm_exc}", file=sys.stderr, flush=True)
-                    raise RuntimeError(f"Server at {url} did not become ready in time (timeout: {timeout}s) due to: {e}")
-                await asyncio.sleep(0.2) # Slightly longer sleep
+                    raise RuntimeError(f"Server at {check_url} did not become ready in time (timeout: {timeout}s). Last error: {last_exception if last_exception else 'N/A'}")
+                await asyncio.sleep(0.5) # Increased sleep interval
 
     try:
-        server_url = "http://127.0.0.1:8000/mcp"
-        await wait_for_server_ready(proc, server_url) # Pass proc and wait
+        # The server_url for streamablehttp_client should be the full MCP path
+        mcp_server_url = "http://127.0.0.1:8000/mcp/" # Ensure trailing slash for consistency
+        http_base_url = "http://127.0.0.1:8000" # Base URL for simple HTTP checks
+
+        # Pass proc and the base URL to wait_for_server_ready
+        await wait_for_server_ready(proc, http_base_url, mcp_endpoint_path="/mcp/")
 
         # Connect to the server using the SDK's recommended pattern
-        async with streamablehttp_client(server_url) as (read_stream, write_stream, _):
+        async with streamablehttp_client(mcp_server_url) as (read_stream, write_stream, _): # Use the full MCP URL
             async with ClientSession(read_stream, write_stream) as session:
                 await session.initialize()
                 await _call_list(session)
     finally:
-        proc.terminate()
+        if proc.returncode is None: # Check if process is still running
+            proc.terminate()
         await proc.wait()
 
