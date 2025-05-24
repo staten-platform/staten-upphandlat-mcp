@@ -9,7 +9,8 @@ import pytest
 
 mcp_mod = pytest.importorskip("mcp")
 from anthropic import APIError, Anthropic # noqa: E402
-from mcp import ClientSession  # noqa: E402
+from mcp import ClientSession # noqa: E402
+from mcp.client.stdio import StdioServerParameters, stdio_client # noqa: E402
 from mcp.client.streamable_http import streamablehttp_client  # noqa: E402
 
 HTTP_OK = 200
@@ -179,87 +180,82 @@ async def wait_for_server_ready(
             await asyncio.sleep(0.5)
 
 
-async def run_chat_session(server_url: str) -> list[dict[str, str]]:
-    """Run a minimal chat session calling one tool."""
+async def _execute_chatbot_tool_call(
+    session: ClientSession, 
+    llm_client: LLMClient, 
+    verbose: bool
+) -> list[dict[str, str]]:
+    """Core logic for a chatbot session that calls one tool."""
+    await session.initialize()
+    tools = await session.list_tools()
+    tool_names = ", ".join(t.name for t in tools.tools)
+    system_msg = {
+        "role": "system",
+        "content": f"Tools available: {tool_names}",
+    }
+    list_df_tool_desc = "Retrieves the list of names and descriptions for all loaded DataFrames."
+    anthropic_tools_param = [
+        {
+            "name": "list_available_dataframes",
+            "description": list_df_tool_desc,
+            "input_schema": {"type": "object", "properties": {}},
+        }
+    ]
+    messages = [system_msg, {"role": "user", "content": "what dataframes"}]
+    llm_resp_text = llm_client.get_response(messages, tools_param=anthropic_tools_param)
+
+    try:
+        tool_call = json.loads(llm_resp_text)
+    except json.JSONDecodeError:
+        if verbose:
+            print(f"LLM_RESPONSE_NOT_JSON: Could not decode LLM response as JSON: '{llm_resp_text}'", file=sys.stderr)
+        raise AssertionError(f"LLM response was not valid JSON: {llm_resp_text}")
+
+    if verbose:
+        print(f"MCP_CLIENT_TOOL_CALL_SENT: tool='{tool_call['tool']}', args={tool_call['arguments']}", file=sys.stderr)
+
+    call_result = await session.call_tool(tool_call["tool"], tool_call["arguments"])
+
+    if verbose:
+        logged_content = []
+        for item in call_result.content:
+            if hasattr(item, 'text'):
+                logged_content.append(item.text)
+            else:
+                logged_content.append(str(item))
+        print(f"MCP_CLIENT_TOOL_CALL_RESULT_CONTENT: {logged_content}", file=sys.stderr)
+
+    data: list[dict[str, str]] = []
+    for item in call_result.content:
+        if hasattr(item, "text"):
+            try:
+                loaded_item = json.loads(item.text)
+                if isinstance(loaded_item, dict):
+                    data.append(loaded_item)
+                elif isinstance(loaded_item, list) and len(loaded_item) == 1 and isinstance(loaded_item[0], dict):
+                    data.append(loaded_item[0])
+                else:
+                    data.append({"text": item.text}) 
+            except json.JSONDecodeError:
+                data.append({"text": item.text})
+    return data
+
+
+async def run_chat_session_http(server_url: str) -> list[dict[str, str]]:
+    """Runs the chat session logic using HTTP transport."""
     llm_client = LLMClient()
     verbose = os.getenv("TEST_INTEGRATION_VERBOSE") == "1"
-
     async with streamablehttp_client(server_url) as (read, write, _):
         async with ClientSession(read, write) as session:
-            await session.initialize()
-            tools = await session.list_tools()
-            tool_names = ", ".join(t.name for t in tools.tools)
-            system_msg = { # This structure is fine for Anthropic SDK messages list
-                "role": "system",
-                "content": f"Tools available: {tool_names}",
-            }
-            # Define the tool for Anthropic
-            # For this test, we only expect list_available_dataframes to be called.
-            # We need to find its description from the actual tool definition if possible,
-            # or use a placeholder. For now, a placeholder.
-            # The actual description is in info_tools.py
-            list_df_tool_desc = "Retrieves the list of names and descriptions for all loaded DataFrames."
-            anthropic_tools_param = [
-                {
-                    "name": "list_available_dataframes",
-                    "description": list_df_tool_desc,
-                    "input_schema": {"type": "object", "properties": {}},
-                }
-            ]
+            return await _execute_chatbot_tool_call(session, llm_client, verbose)
 
-            messages = [system_msg, {"role": "user", "content": "what dataframes"}]
-            llm_resp_text = llm_client.get_response(messages, tools_param=anthropic_tools_param)
-            
-            # Ensure llm_resp_text is valid JSON before trying to load it
-            try:
-                tool_call = json.loads(llm_resp_text)
-            except json.JSONDecodeError:
-                if verbose:
-                    print(f"LLM_RESPONSE_NOT_JSON: Could not decode LLM response as JSON: '{llm_resp_text}'", file=sys.stderr)
-                # If LLM response is not the expected JSON, the test will likely fail at assertion or next step.
-                # For this test, if it's not JSON, it's an unexpected (non-mock) response.
-                # Let's assume for now the test expects a JSON parsable tool call.
-                # If Anthropic returns natural language, this will fail.
-                # The mock ensures it's JSON. A real call might not.
-                # This part of the test might need adjustment based on real API behavior.
-                # For now, if it's not JSON, the test will fail when trying to access tool_call['tool']
-                # which is an acceptable failure mode for an unexpected LLM response.
-                # Re-raise or handle as appropriate if this becomes a frequent issue with real API.
-                raise AssertionError(f"LLM response was not valid JSON: {llm_resp_text}")
 
-            if verbose:
-                print(f"MCP_CLIENT_TOOL_CALL_SENT: tool='{tool_call['tool']}', args={tool_call['arguments']}", file=sys.stderr)
-
-            call_result = await session.call_tool(
-                tool_call["tool"], tool_call["arguments"]
-            )
-
-            if verbose:
-                logged_content = []
-                for item in call_result.content:
-                    if hasattr(item, 'text'):
-                        logged_content.append(item.text)
-                    else:
-                        logged_content.append(str(item))
-                print(f"MCP_CLIENT_TOOL_CALL_RESULT_CONTENT: {logged_content}", file=sys.stderr)
-
-            data: list[dict[str, str]] = []
-            for item in call_result.content:
-                if hasattr(item, "text"):
-                    try:
-                        # The content from list_available_dataframes is a JSON string representing a dict
-                        loaded_item = json.loads(item.text)
-                        if isinstance(loaded_item, dict): # Ensure it's a dict as expected by the assertion
-                            data.append(loaded_item)
-                        elif isinstance(loaded_item, list) and len(loaded_item) == 1 and isinstance(loaded_item[0], dict):
-                            # Handle if it's a list with one dict (older expectation)
-                            data.append(loaded_item[0])
-                        else:
-                            # Unexpected structure
-                            data.append({"text": item.text}) # Fallback
-                    except json.JSONDecodeError:
-                        data.append({"text": item.text})
-            return data
+async def run_chat_session_stdio(read_stream, write_stream) -> list[dict[str, str]]:
+    """Runs the chat session logic using STDIN/STDOUT transport."""
+    llm_client = LLMClient()
+    verbose = os.getenv("TEST_INTEGRATION_VERBOSE") == "1"
+    async with ClientSession(read_stream, write_stream) as session:
+        return await _execute_chatbot_tool_call(session, llm_client, verbose)
 
 
 
@@ -289,36 +285,12 @@ def sample_config(tmp_path: Path) -> Path:
 async def test_chatbot_integration(
     sample_config: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # Set environment variables for LLMClient and run_chat_session
-    # Ensure verbose logging is enabled for this test
+    # conftest.py handles ANTHROPIC_API_KEY, USE_ANTHROPIC_IN_TEST.
+    # TEST_INTEGRATION_VERBOSE is also loaded by conftest, but we explicitly set it to "1"
+    # here to ensure verbosity for this specific test, overriding any .env setting.
     monkeypatch.setenv("TEST_INTEGRATION_VERBOSE", "1")
-
-    # Propagate USE_ANTHROPIC_IN_TEST from the pytest runner's environment
-    # If not set in the runner's env, LLMClient will see it as None, and USE_ANTHROPIC_IN_TEST == "1" will be false.
-    use_anthropic_env = os.environ.get("USE_ANTHROPIC_IN_TEST")
-    if use_anthropic_env is not None:
-        monkeypatch.setenv("USE_ANTHROPIC_IN_TEST", use_anthropic_env)
-    else:
-        # If you want to default to "0" or "1" if not set, you can do it here.
-        # For now, if it's not in the parent env, it won't be set in the test env,
-        # and LLMClient's os.getenv("USE_ANTHROPIC_IN_TEST") == "1" will be False.
-        # Alternatively, to ensure it's explicitly "0" if not "1":
-        # monkeypatch.setenv("USE_ANTHROPIC_IN_TEST", "1" if use_anthropic_env == "1" else "0")
-        pass # Let it be unset if not in parent env, LLMClient handles None
-
-    # Propagate ANTHROPIC_API_KEY from the pytest runner's environment
-    # If not set in the runner's env, LLMClient will see self.api_key as None.
-    anthropic_api_key_env = os.environ.get("ANTHROPIC_API_KEY")
-    if anthropic_api_key_env is not None:
-        monkeypatch.setenv("ANTHROPIC_API_KEY", anthropic_api_key_env)
-    else:
-        # If ANTHROPIC_API_KEY is not in the parent env, it will not be set in the test env.
-        # LLMClient's self.api_key will be None.
-        pass
-
-    # Set environment variables for the subprocess (upphandlat_mcp server)
     monkeypatch.setenv("CSV_SOURCES_CONFIG_PATH", str(sample_config))
-    monkeypatch.setenv("MCP_TRANSPORT", "streamable-http") # This is for the test's direct MCP interaction if any, also for subprocess.
+    monkeypatch.setenv("MCP_TRANSPORT", "streamable-http")
 
     # Environment for the subprocess
     env = os.environ.copy() # Start with current pytest process env (which now includes monkeypatched vars)
@@ -338,9 +310,35 @@ async def test_chatbot_integration(
     )
     try:
         await wait_for_server_ready(proc, "http://127.0.0.1:8000")
-        result = await run_chat_session("http://127.0.0.1:8000/mcp/")
+        result = await run_chat_session_http("http://127.0.0.1:8000/mcp/")
         assert {"name": "sample", "description": "Sample dataset"} in result
     finally:
         if proc.returncode is None:
             proc.terminate()
         await proc.wait()
+
+
+@pytest.mark.asyncio
+async def test_chatbot_integration_stdio(
+    sample_config: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # conftest.py handles ANTHROPIC_API_KEY, USE_ANTHROPIC_IN_TEST.
+    # TEST_INTEGRATION_VERBOSE is also loaded by conftest, but we explicitly set it to "1"
+    # here to ensure verbosity for this specific test, overriding any .env setting.
+    monkeypatch.setenv("TEST_INTEGRATION_VERBOSE", "1")
+    monkeypatch.setenv("CSV_SOURCES_CONFIG_PATH", str(sample_config))
+    monkeypatch.setenv("MCP_TRANSPORT", "stdio")
+
+    # StdioServerParameters will use os.environ.copy() by default if env=None,
+    # or we can pass it explicitly. Since conftest and monkeypatch modify os.environ
+    # for the pytest process, these will be inherited.
+    stdio_env = os.environ.copy()
+
+    server_params = StdioServerParameters(
+        command=sys.executable,
+        args=["-m", "upphandlat_mcp"],
+        env=stdio_env, # Pass the current environment
+    )
+    async with stdio_client(server_params) as (read_stream, write_stream):
+        result = await run_chat_session_stdio(read_stream, write_stream)
+        assert {"name": "sample", "description": "Sample dataset"} in result
