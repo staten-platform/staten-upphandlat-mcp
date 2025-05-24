@@ -2,8 +2,8 @@ import asyncio
 import os
 import sys
 from asyncio.subprocess import DEVNULL
-
-import pytest
+import json # <--- ADD THIS
+import pytest # <--- ADD THIS
 
 yaml = pytest.importorskip("yaml")
 
@@ -40,7 +40,28 @@ async def _call_list(sample_session):
     tools = await sample_session.list_tools()
     assert any(t.name == "list_available_dataframes" for t in tools.tools)
     result = await sample_session.call_tool("list_available_dataframes", arguments={})
-    assert result.content
+    
+    # --- MODIFICATION START ---
+    assert result.content, "call_tool result.content should not be empty"
+    # list_available_dataframes should return a single JSON string in a single ToolContent item
+    assert len(result.content) == 1, f"Expected one content item, got {len(result.content)}"
+    
+    content_item = result.content[0]
+    assert hasattr(content_item, "text"), "Content item should have a 'text' attribute"
+    
+    try:
+        parsed_content = json.loads(content_item.text)
+    except json.JSONDecodeError as e:
+        pytest.fail(f"Failed to parse content item text as JSON: '{content_item.text}'. Error: {e}")
+
+    # Based on sample_config, this is the expected output
+    expected_data = [{"name": "sample", "description": "Sample dataset"}]
+    
+    assert isinstance(parsed_content, list), \
+        f"Expected parsed content to be a list, got {type(parsed_content).__name__}: {parsed_content}"
+    assert parsed_content == expected_data, \
+        f"Unexpected parsed content. Expected {expected_data}, got {parsed_content}"
+    # --- MODIFICATION END ---
 
 
 @pytest.mark.asyncio
