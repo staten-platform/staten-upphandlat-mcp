@@ -66,11 +66,14 @@ async def wait_for_server_ready(
             status = await asyncio.to_thread(
                 lambda: urllib.request.urlopen(check_url, timeout=5).getcode()
             )
-            if (
-                HTTP_OK <= status < HTTP_MULT_CHOICE
-                or status in {404, 405}
-            ):
+            if HTTP_OK <= status < HTTP_MULT_CHOICE or status in {404, 405}:
                 return
+        except urllib.error.HTTPError as exc:  # noqa: PERF203
+            status = exc.code
+            if HTTP_OK <= status < HTTP_MULT_CHOICE or status in {404, 405}:
+                return
+            last_exception = exc
+
         except urllib.error.URLError as exc:  # noqa: PERF203
             last_exception = exc
         if asyncio.get_event_loop().time() >= deadline:
@@ -117,6 +120,8 @@ def sample_config(tmp_path: Path) -> Path:
     }
     config_path = tmp_path / "config.json"
     config_path.write_text(json.dumps(config))
+    return config_path
+
 
 
 @pytest.mark.asyncio
