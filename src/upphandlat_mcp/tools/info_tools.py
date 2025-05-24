@@ -64,6 +64,15 @@ async def list_available_dataframes(
                 "Dataframes dictionary has keys but result list is empty. Check logic."
             )
 
+        # --- MODIFICATION START ---
+        if isinstance(result_list, list) and len(result_list) == 1 and isinstance(result_list[0], dict):
+            logger.info(
+                "list_available_dataframes is returning a single-item list containing one dictionary. "
+                "Note: The MCP framework with json_response=True might serialize this as a single JSON object "
+                "instead of a JSON array containing one object."
+            )
+        # --- MODIFICATION END ---
+
         return result_list
 
     except KeyError as e:
