@@ -72,28 +72,45 @@ async def test_server_streamable_http(sample_config, monkeypatch):
         "-m",
         "upphandlat_mcp",
         env=env,
-        stdout=DEVNULL,
-        stderr=DEVNULL,
+        # stdout=DEVNULL, # Ensure these are commented out for visibility
+        # stderr=DEVNULL, # Ensure these are commented out for visibility
     )
 
-    # Renamed and redefined wait_for_server
-    async def wait_for_server_ready(url: str, timeout: float = 5.0):
+    # Improved wait_for_server_ready
+    async def wait_for_server_ready(proc: asyncio.subprocess.Process, url: str, timeout: float = 10.0): # Increased timeout
         deadline = asyncio.get_event_loop().time() + timeout
         while True:
+            if proc.returncode is not None:
+                # Attempt to read any final output if process exited
+                stdout, stderr = await proc.communicate()
+                print(f"Server process stdout: {stdout.decode(errors='ignore') if stdout else 'None'}")
+                print(f"Server process stderr: {stderr.decode(errors='ignore') if stderr else 'None'}")
+                raise RuntimeError(f"Server process exited prematurely with code {proc.returncode}")
+
             try:
                 # Attempt to establish a full session to confirm server readiness
                 async with streamablehttp_client(url) as (read, write, _):
                     async with ClientSession(read, write) as session:
                         await session.initialize()
+                print(f"Server at {url} is ready.") # Confirmation message
                 return  # Server is ready
-            except Exception:  # noqa: BLE001
+            except ConnectionRefusedError:
+                print(f"Connection to {url} refused. Retrying...")
+            except Exception as e:  # noqa: BLE001
+                print(f"Error connecting to {url}: {type(e).__name__} - {e}. Retrying...")
+
                 if asyncio.get_event_loop().time() >= deadline:
+                    # Try to get more info from the process if it's still running on timeout
+                    if proc.returncode is None: # Check if still running before communicate
+                        stdout, stderr = await proc.communicate()
+                        print(f"Server stdout on timeout: {stdout.decode(errors='ignore') if stdout else 'None'}")
+                        print(f"Server stderr on timeout: {stderr.decode(errors='ignore') if stderr else 'None'}")
                     raise
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(0.2) # Slightly longer sleep
 
     try:
         server_url = "http://127.0.0.1:8000/mcp"
-        await wait_for_server_ready(server_url) # Wait for the server to be fully operational
+        await wait_for_server_ready(proc, server_url) # Pass proc and wait
 
         # Connect to the server using the SDK's recommended pattern
         async with streamablehttp_client(server_url) as (read_stream, write_stream, _):

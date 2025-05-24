@@ -97,6 +97,9 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[LifespanContext]:
 
     except FileNotFoundError as e_fnf:
         logger.critical(f"Lifespan critical error (FileNotFound): {e_fnf}")
+        print(
+            f"LIFESPAN_ERROR_STDERR: FileNotFoundError: {e_fnf}", file=sys.stderr, flush=True
+        )
         raise
     except (
         yaml.YAMLError,
@@ -106,10 +109,16 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[LifespanContext]:
             f"Lifespan critical error parsing YAML config or validating sources: {e_yaml_parse}",
             exc_info=True,
         )
+        print(
+            f"LIFESPAN_ERROR_STDERR: YAML/ValueError: {e_yaml_parse}", file=sys.stderr, flush=True
+        )
         raise
     except Exception as e_outer:
         logger.critical(
             f"Lifespan critical error during data loading: {e_outer}", exc_info=True
+        )
+        print(
+            f"LIFESPAN_ERROR_STDERR: Generic Exception: {e_outer}", file=sys.stderr, flush=True
         )
         raise
     finally:
