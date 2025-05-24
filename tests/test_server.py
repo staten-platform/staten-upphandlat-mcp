@@ -100,7 +100,11 @@ async def test_server_streamable_http(sample_config, monkeypatch):
 
                 try:
                     # Perform a simple GET request to the MCP endpoint.
-                    response = await client.get(check_url, timeout=5.0) # Short timeout for individual attempt
+                    response = await client.get(
+                        check_url,
+                        timeout=5.0,
+                        headers={"Accept": "*/*"}  # Explicitly set Accept header
+                    )
                     if 200 <= response.status_code < 300 or response.status_code == 405:
                         print(f"WAIT_FOR_SERVER_DEBUG: Server at {check_url} responded with {response.status_code}. Ready.", file=sys.stderr, flush=True)
                         return  # Server is ready
