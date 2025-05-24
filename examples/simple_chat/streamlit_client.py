@@ -34,17 +34,27 @@ if submitted and tool_name:
             st.write(user_msg)
 
         with st.spinner("Waiting for response..."):
-            res = httpx.post(
-                MCP_URL,
-                json={
-                    "jsonrpc": "2.0",
-                    "id": 1,
-                    "method": "call_tool",
-                    "params": {"name": tool_name, "arguments": args},
-                },
-                timeout=30.0,
-            )
-            reply = res.json().get("result")
+            try:
+                response = httpx.post(
+                    MCP_URL,
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "call_tool",
+                        "params": {"name": tool_name, "arguments": args},
+                    },
+                    timeout=30.0,
+                )
+                response.raise_for_status()
+                try:
+                    reply = response.json().get("result")
+                except json.JSONDecodeError as exc:
+                    reply = (
+                        f"Server returned invalid JSON: {exc}.\n"
+                        f"Raw content: {response.text}"
+                    )
+            except httpx.HTTPError as exc:
+                reply = f"Request failed: {exc}"
 
         st.session_state.messages.append(("server", str(reply)))
         with st.chat_message("server"):
