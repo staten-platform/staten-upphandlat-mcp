@@ -1,19 +1,10 @@
-from __future__ import annotations
-# ruff: noqa: I001
-
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
 import types
+
 import pytest
 
-info_tools = pytest.importorskip("upphandlat_mcp.tools.info_tools")
-
 pl = pytest.importorskip("polars")
-rapidfuzz = pytest.importorskip("rapidfuzz")
 
+from upphandlat_mcp.tools import info_tools  # noqa: E402
 
 class DummyCtx:
     def __init__(self, lifespan_context: dict[str, object]):
@@ -76,11 +67,17 @@ async def test_distinct_values(sample_context):
     assert sorted(values) == ["Alice", "Bob"]
 
 
+rapidfuzz = pytest.importorskip("rapidfuzz")
+
 @pytest.mark.asyncio
 async def test_fuzzy_search(sample_context):
     ctx = DummyCtx(sample_context)
     matches = await info_tools.fuzzy_search_column_values(
-        ctx, "sample", "name", "Alce", limit=1
+        ctx,
+        "sample",
+        "name",
+        "Alce",
+        limit=1,
     )
     assert matches and matches[0]["value"] == "Alice"
 

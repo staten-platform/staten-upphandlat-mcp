@@ -1,25 +1,16 @@
-from __future__ import annotations
-# ruff: noqa: I001
-
-import sys
-from pathlib import Path
 import asyncio
 import os
+import sys
+
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+yaml = pytest.importorskip("yaml")
 
-try:
-    from mcp import ClientSession
-    from mcp.client.stdio import StdioServerParameters, stdio_client
-    from mcp.client.streamable_http import streamable_http_client
-except ModuleNotFoundError:
-    pytest.skip("mcp not installed", allow_module_level=True)
+mcp_mod = pytest.importorskip("mcp")
 
-try:
-    import yaml
-except ModuleNotFoundError:
-    pytest.skip("pyyaml not installed", allow_module_level=True)
+from mcp import ClientSession  # noqa: E402
+from mcp.client.stdio import StdioServerParameters, stdio_client  # noqa: E402
+from mcp.client.streamable_http import streamablehttp_client  # noqa: E402
 
 
 @pytest.fixture()
@@ -80,7 +71,8 @@ async def test_server_streamable_http(sample_config, monkeypatch):
         env=env,
     )
     try:
-        client = await streamable_http_client("http://127.0.0.1:8000/mcp")
+        client = await streamablehttp_client("http://127.0.0.1:8000/mcp")
+
         async with client as session:
             await session.initialize()
             await _call_list(session)
