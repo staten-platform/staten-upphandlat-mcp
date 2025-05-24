@@ -92,6 +92,26 @@ For a more robust startup, especially if data loading is slow, you might need to
 uv run python -m mcp serve src/upphandlat_mcp/server.py:mcp --lifespan-timeout 120
 ```
 
+### Streamlit Chat Example
+
+A small example server using the streamable HTTP transport is available in
+`examples/simple_chat`. The folder contains a `server.py` file exposing a simple
+`echo` tool and a `streamlit_client.py` that interacts with it.
+
+1. Start the MCP server:
+
+```bash
+python examples/simple_chat/server.py
+```
+
+2. Launch the Streamlit UI in another terminal:
+
+```bash
+streamlit run examples/simple_chat/streamlit_client.py
+```
+
+Open the printed URL in your browser to chat with the server.
+
 ## Claude Desktop Integration
 
 Edit your `claude_desktop_config.json` to add this MCP Server. With this method, you need to have Astral UV installed globally.
