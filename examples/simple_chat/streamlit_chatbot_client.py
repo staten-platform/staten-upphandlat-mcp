@@ -29,6 +29,7 @@ class LLMClient:
         tools: list[dict[str, Any]] | None = None,
     ) -> str:
         """Return a tool call JSON string or text response from the LLM."""
+
         if self.client:
             system = next(
                 (m["content"] for m in messages if m["role"] == "system"),
