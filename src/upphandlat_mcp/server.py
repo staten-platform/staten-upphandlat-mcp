@@ -24,6 +24,7 @@ mcp = FastMCP(
         "(loaded via URLs) using Polars."
     ),
     lifespan=app_lifespan,
+    json_response=True,
 )
 
 mcp.tool()(list_available_dataframes)
