@@ -1,13 +1,14 @@
 """Streamlit client for interacting with the upphandlat MCP server."""
 
 import json
+import os
 
 import httpx
 import streamlit as st
 
 st.title("Upphandlat MCP Client")
 
-MCP_URL = "http://localhost:8000/mcp"
+MCP_URL = os.getenv("MCP_URL", "http://localhost:8000/mcp/")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
