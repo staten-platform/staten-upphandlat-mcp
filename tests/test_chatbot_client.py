@@ -23,7 +23,10 @@ class LLMClient:
         self.USE_ANTHROPIC_IN_TEST = os.getenv("USE_ANTHROPIC_IN_TEST") == "1"
         self.api_key = os.getenv("ANTHROPIC_API_KEY")
         # --- MODIFICATION START ---
-        self.verbose = os.getenv("TEST_INTEGRATION_VERBOSE") == "1"
+        raw_env_val = os.getenv("TEST_INTEGRATION_VERBOSE")
+        print(f"DEBUG: TEST_INTEGRATION_VERBOSE raw: '{raw_env_val}'", file=sys.stderr)
+        self.verbose = raw_env_val == "1"
+        print(f"DEBUG: self.verbose is: {self.verbose}", file=sys.stderr)
         # --- MODIFICATION END ---
 
     def get_response(self, messages: list[dict[str, str]]) -> str:
