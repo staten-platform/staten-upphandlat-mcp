@@ -20,11 +20,11 @@ class LLMClient:
     """Simple LLM client using Anthropic or returning mock responses."""
 
     def __init__(self) -> None:
-        self.use_anthropic = os.getenv("USE_ANTHROPIC") == "1"
+        self.USE_ANTHROPIC_IN_TEST = os.getenv("USE_ANTHROPIC_IN_TEST") == "1"
         self.api_key = os.getenv("ANTHROPIC_API_KEY")
 
     def get_response(self, messages: list[dict[str, str]]) -> str:
-        if self.use_anthropic and self.api_key:
+        if self.USE_ANTHROPIC_IN_TEST and self.api_key:
             url = "https://api.anthropic.com/v1/messages"
             payload = {
                 "model": "claude-sonnet-4-20250514",
