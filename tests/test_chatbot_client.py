@@ -3,6 +3,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Any # Added for type hint
 
 import pytest
 
@@ -36,10 +37,14 @@ class LLMClient:
                     print(f"LLM_CLIENT_ERROR: Failed to initialize Anthropic client: {e}", file=sys.stderr)
                 self.anthropic_client = None # Ensure it's None if init fails
 
-    def get_response(self, messages_input: list[dict[str, str]]) -> str: # Renamed input param for clarity
+    def get_response(
+        self,
+        messages_input: list[dict[str, str]],
+        tools_param: list[dict[str, Any]] | None = None, # For Anthropic tool definitions
+    ) -> str:
         if self.USE_ANTHROPIC_IN_TEST and self.api_key and self.anthropic_client:
-            model_name = "claude-sonnet-4-20250514"
-            max_tokens_to_sample = 256
+            model_name = "claude-sonnet-4-20250514" # Or "claude-3-haiku-20240307" for reliable tool use
+            max_tokens_to_sample = 1024 # Increased max_tokens
 
             # --- MODIFICATION START: Separate system prompt from messages ---
             system_prompt_content: str | None = None
@@ -71,11 +76,11 @@ class LLMClient:
             try:
                 # --- MODIFICATION START: Adjust logging and API call ---
                 if self.verbose:
-                    print(f"LLM_CLIENT_SDK_CALL_PARAMS: model='{model_name}', max_tokens={max_tokens_to_sample}, messages_count={len(api_messages)}, system_prompt_present={'yes' if system_prompt_content else 'no'}", file=sys.stderr)
+                    print(f"LLM_CLIENT_SDK_CALL_PARAMS: model='{model_name}', max_tokens={max_tokens_to_sample}, messages_count={len(api_messages)}, system_prompt_present={'yes' if system_prompt_content else 'no'}, tools_present={'yes' if tools_param else 'no'}", file=sys.stderr)
                     if system_prompt_content and self.verbose: # Ensure verbose is checked for this print too
                          print(f"LLM_CLIENT_SDK_SYSTEM_PROMPT: {system_prompt_content}", file=sys.stderr)
-                    # Optionally log full messages if needed, but be wary of size/sensitivity
-                    # print(f"LLM_CLIENT_SDK_MESSAGES: {json.dumps(api_messages, indent=2)}", file=sys.stderr)
+                    if tools_param and self.verbose:
+                        print(f"LLM_CLIENT_SDK_TOOLS_PARAM: {json.dumps(tools_param, indent=2)}", file=sys.stderr)
 
                 if not api_messages: # Explicitly fall back if no valid messages for the API
                     if self.verbose:
@@ -89,6 +94,8 @@ class LLMClient:
                 }
                 if system_prompt_content is not None: # Pass system only if it exists
                     create_params["system"] = system_prompt_content
+                if tools_param is not None:
+                    create_params["tools"] = tools_param
                 
                 response_obj = self.anthropic_client.messages.create(**create_params)
                 # --- MODIFICATION END ---
@@ -99,10 +106,29 @@ class LLMClient:
                     print(f"LLM_CLIENT_SDK_RESPONSE_ROLE: {response_obj.role}", file=sys.stderr)
                     print(f"LLM_CLIENT_SDK_RESPONSE_STOP_REASON: {response_obj.stop_reason}", file=sys.stderr)
                     # Log content carefully
-                    response_text_preview = (response_obj.content[0].text[:100] + '...') if len(response_obj.content[0].text) > 100 else response_obj.content[0].text
-                    print(f"LLM_CLIENT_SDK_RESPONSE_CONTENT_PREVIEW: {response_text_preview}", file=sys.stderr)
+                    if response_obj.content and hasattr(response_obj.content[0], 'text'):
+                        response_text_preview = (response_obj.content[0].text[:100] + '...') if len(response_obj.content[0].text) > 100 else response_obj.content[0].text
+                        print(f"LLM_CLIENT_SDK_RESPONSE_CONTENT_PREVIEW: {response_text_preview}", file=sys.stderr)
+                    elif response_obj.content:
+                         print(f"LLM_CLIENT_SDK_RESPONSE_FIRST_CONTENT_BLOCK_TYPE: {response_obj.content[0].type}", file=sys.stderr)
 
-                return response_obj.content[0].text
+
+                # Check for tool use
+                if response_obj.stop_reason == "tool_use":
+                    for content_block in response_obj.content:
+                        if content_block.type == "tool_use":
+                            tool_name = content_block.name
+                            tool_input = content_block.input
+                            if self.verbose:
+                                print(f"LLM_CLIENT_SDK_TOOL_USE: name='{tool_name}', input={json.dumps(tool_input, indent=2)}", file=sys.stderr)
+                            return json.dumps({"tool": tool_name, "arguments": tool_input})
+                
+                # If no tool use, return the text content (might be natural language)
+                # This will likely cause json.loads in run_chat_session to fail if a tool call was expected.
+                if response_obj.content and response_obj.content[0].type == "text":
+                    return response_obj.content[0].text
+                return "" # Should not happen if content[0] is not text and no tool use
+
             except APIError as e:
                 if self.verbose:
                     print(f"LLM_CLIENT_SDK_ERROR: APIError during Anthropic call: {e}", file=sys.stderr)
@@ -167,8 +193,22 @@ async def run_chat_session(server_url: str) -> list[dict[str, str]]:
                 "role": "system",
                 "content": f"Tools available: {tool_names}",
             }
+            # Define the tool for Anthropic
+            # For this test, we only expect list_available_dataframes to be called.
+            # We need to find its description from the actual tool definition if possible,
+            # or use a placeholder. For now, a placeholder.
+            # The actual description is in info_tools.py
+            list_df_tool_desc = "Retrieves the list of names and descriptions for all loaded DataFrames."
+            anthropic_tools_param = [
+                {
+                    "name": "list_available_dataframes",
+                    "description": list_df_tool_desc,
+                    "input_schema": {"type": "object", "properties": {}},
+                }
+            ]
+
             messages = [system_msg, {"role": "user", "content": "what dataframes"}]
-            llm_resp_text = llm_client.get_response(messages)
+            llm_resp_text = llm_client.get_response(messages, tools_param=anthropic_tools_param)
             
             # Ensure llm_resp_text is valid JSON before trying to load it
             try:
