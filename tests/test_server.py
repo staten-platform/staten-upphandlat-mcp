@@ -5,14 +5,14 @@ from asyncio.subprocess import DEVNULL
 
 import pytest
 
-yaml = pytest.importorskip("yaml")  # noqa: E402
+yaml = pytest.importorskip("yaml")
 
-mcp_mod = pytest.importorskip("mcp")  # noqa: E402
+mcp_mod = pytest.importorskip("mcp")
 
-from mcp import ClientSession  # noqa: E402
-from mcp.client.stdio import StdioServerParameters, stdio_client  # noqa: E402
+from mcp import ClientSession
+from mcp.client.stdio import StdioServerParameters, stdio_client
 from mcp.client.streamable_http import streamablehttp_client
-import httpx # Add httpx import
+import httpx
 
 
 @pytest.fixture()
@@ -47,12 +47,12 @@ async def _call_list(sample_session):
 async def test_server_stdio(sample_config, monkeypatch):
     monkeypatch.setenv("CSV_SOURCES_CONFIG_PATH", str(sample_config))
     monkeypatch.setenv("MCP_TRANSPORT", "stdio")
-    monkeypatch.setenv("POLARS_MAX_THREADS", "1") # Control Polars threading
+    monkeypatch.setenv("POLARS_MAX_THREADS", "1")
 
     server_params = StdioServerParameters(
         command=sys.executable,
         args=["-m", "upphandlat_mcp"],
-        env=os.environ.copy(), # Ensure subprocess inherits env including monkeypatched vars
+        env=os.environ.copy(),
     )
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
@@ -69,7 +69,7 @@ async def test_server_streamable_http(sample_config, monkeypatch):
         {
             "CSV_SOURCES_CONFIG_PATH": str(sample_config),
             "MCP_TRANSPORT": "streamable-http",
-            "POLARS_MAX_THREADS": "1", # Control Polars threading
+            "POLARS_MAX_THREADS": "1",
         }
     )
     proc = await asyncio.create_subprocess_exec(
@@ -77,18 +77,10 @@ async def test_server_streamable_http(sample_config, monkeypatch):
         "-m",
         "upphandlat_mcp",
         env=env,
-        # stdout=DEVNULL, # Ensure these are commented out for visibility
-        # stderr=DEVNULL, # Ensure these are commented out for visibility
     )
 
-    # Improved wait_for_server_ready
-    async def wait_for_server_ready(process: asyncio.subprocess.Process, base_url: str, mcp_endpoint_path: str = "/mcp/", timeout: float = 20.0): # Increased timeout, added base_url and mcp_endpoint_path
+    async def wait_for_server_ready(process: asyncio.subprocess.Process, base_url: str, mcp_endpoint_path: str = "/mcp/", timeout: float = 20.0):
         deadline = asyncio.get_event_loop().time() + timeout
-        # Use a lightweight request to the root path for readiness checking.
-        # Accessing the StreamableHTTP endpoint directly opens a streaming
-        # connection, which causes timeouts with simple HTTP clients.  Instead
-        # we hit the server root (expected to return 404) just to verify the
-        # HTTP server is accepting connections.
         check_url = base_url.rstrip('/') + '/'
         
         print(f"WAIT_FOR_SERVER_DEBUG: Checking server readiness at {check_url}", file=sys.stderr, flush=True)
@@ -97,14 +89,12 @@ async def test_server_streamable_http(sample_config, monkeypatch):
         async with httpx.AsyncClient() as client:
             while True:
                 if process.returncode is not None:
-                    # Attempt to read any final output if process exited
                     stdout, stderr = await process.communicate()
                     print(f"WAIT_FOR_SERVER_DEBUG: Server process stdout: {stdout.decode(errors='ignore') if stdout else 'None'}", file=sys.stderr, flush=True)
                     print(f"WAIT_FOR_SERVER_DEBUG: Server process stderr: {stderr.decode(errors='ignore') if stderr else 'None'}", file=sys.stderr, flush=True)
                     raise RuntimeError(f"Server process exited prematurely with code {process.returncode}")
 
                 try:
-                    # Perform a simple GET request to the MCP endpoint.
                     response = await client.get(
                         check_url,
                         timeout=5.0,
@@ -115,18 +105,15 @@ async def test_server_streamable_http(sample_config, monkeypatch):
                         or response.status_code in {404, 405}
                     ):
                         print(f"WAIT_FOR_SERVER_DEBUG: Server at {check_url} responded with {response.status_code}. Ready.", file=sys.stderr, flush=True)
-                        return  # Server is ready
+                        return
                     else:
                         print(f"WAIT_FOR_SERVER_DEBUG: Server at {check_url} responded with {response.status_code}. Retrying...", file=sys.stderr, flush=True)
                         last_exception = httpx.HTTPStatusError(f"Server responded with {response.status_code}", request=response.request, response=response)
 
                 except httpx.RequestError as e:
                     last_exception = e
-                    if asyncio.get_event_loop().time() < deadline - (timeout * 0.8): # Only print for first 20% of attempts
+                    if asyncio.get_event_loop().time() < deadline - (timeout * 0.8):
                         print(f"WAIT_FOR_SERVER_DEBUG: HTTP request to {check_url} failed: {type(e).__name__}. Retrying...", file=sys.stderr, flush=True)
-                # except Exception as e:  # noqa: BLE001 # Catch other unexpected errors during check
-                #     last_exception = e
-                #     print(f"WAIT_FOR_SERVER_DEBUG: Error connecting to {check_url}: {type(e).__name__} - {e}. Retrying...", file=sys.stderr, flush=True)
 
 
                 if asyncio.get_event_loop().time() >= deadline:
@@ -139,26 +126,23 @@ async def test_server_streamable_http(sample_config, monkeypatch):
                             print(f"WAIT_FOR_SERVER_DEBUG: Server stderr on forced terminate: {s_err.decode(errors='ignore') if s_err else 'None'}", file=sys.stderr, flush=True)
                         except asyncio.TimeoutError:
                             print("WAIT_FOR_SERVER_DEBUG: Timeout during communicate after terminate.", file=sys.stderr, flush=True)
-                        except Exception as comm_exc: # pylint: disable=broad-except
+                        except Exception as comm_exc:
                             print(f"WAIT_FOR_SERVER_DEBUG: Error during communicate after terminate: {comm_exc}", file=sys.stderr, flush=True)
                     raise RuntimeError(f"Server at {check_url} did not become ready in time (timeout: {timeout}s). Last error: {last_exception if last_exception else 'N/A'}")
-                await asyncio.sleep(0.5) # Increased sleep interval
+                await asyncio.sleep(0.5)
 
     try:
-        # The server_url for streamablehttp_client should be the full MCP path
-        mcp_server_url = "http://127.0.0.1:8000/mcp/" # Ensure trailing slash for consistency
-        http_base_url = "http://127.0.0.1:8000" # Base URL for simple HTTP checks
+        mcp_server_url = "http://127.0.0.1:8000/mcp/"
+        http_base_url = "http://127.0.0.1:8000"
 
-        # Pass proc and the base URL to wait_for_server_ready
         await wait_for_server_ready(proc, http_base_url, mcp_endpoint_path="/mcp/")
 
-        # Connect to the server using the SDK's recommended pattern
-        async with streamablehttp_client(mcp_server_url) as (read_stream, write_stream, _): # Use the full MCP URL
+        async with streamablehttp_client(mcp_server_url) as (read_stream, write_stream, _):
             async with ClientSession(read_stream, write_stream) as session:
                 await session.initialize()
                 await _call_list(session)
     finally:
-        if proc.returncode is None: # Check if process is still running
+        if proc.returncode is None:
             proc.terminate()
         await proc.wait()
 
