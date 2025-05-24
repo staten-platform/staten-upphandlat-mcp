@@ -25,6 +25,7 @@ mcp = FastMCP(
     ),
     lifespan=app_lifespan,
     json_response=True,
+    stateless_http=True,
 )
 
 mcp.tool()(list_available_dataframes)
