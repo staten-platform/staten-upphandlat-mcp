@@ -3,7 +3,11 @@ import sys # Added for sys.stderr.fileno()
 from pathlib import Path
 
 import pytest
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except Exception:  # pragma: no cover - fallback for environments without python-dotenv
+    def load_dotenv(*args, **kwargs):  # type: ignore[return-value]
+        return False
 
 
 @pytest.fixture(scope="session", autouse=True)
