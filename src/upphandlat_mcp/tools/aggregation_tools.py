@@ -4,6 +4,7 @@ from typing import Any
 
 import polars as pl
 from mcp.server.fastmcp import Context
+
 from upphandlat_mcp.lifespan.context import LifespanContext
 from upphandlat_mcp.models.mcp_models import (
     Aggregation,
@@ -14,7 +15,6 @@ from upphandlat_mcp.models.mcp_models import (
     FilterOperator,
     SummaryColumnConfiguration,
     SummaryFunction,
-    SummaryRowSettings,
 )
 
 logger = logging.getLogger(__name__)
@@ -42,17 +42,14 @@ async def _apply_filters(
         value = condition.value
 
         current_expr: pl.Expr
-        is_string_op_type = False
 
         if condition.operator == FilterOperator.EQUALS:
             if isinstance(value, str):
-                is_string_op_type = True
                 current_expr = col_expr.str.to_lowercase() == str(value).lower()
             else:
                 current_expr = col_expr == value
         elif condition.operator == FilterOperator.NOT_EQUALS:
             if isinstance(value, str):
-                is_string_op_type = True
                 current_expr = col_expr.str.to_lowercase() != str(value).lower()
             else:
                 current_expr = col_expr != value
@@ -71,22 +68,15 @@ async def _apply_filters(
                 )
 
             if value and isinstance(value[0], str):
-                is_string_op_type = True
                 lower_value_list = [str(v).lower() for v in value if isinstance(v, str)]
 
-                if (
-                    not lower_value_list and value
-                ):
+                if not lower_value_list and value:
                     await ctx.warning(
-                        f"Operator 'in' for column '{condition.column}' received a list with non-string items when case-insensitive string matching was attempted. Will use original list for matching."
+                        f"Operator 'in' for column '{condition.column}' received a list with non-string items when string matching was attempted. Will use original list for matching."
                     )
                     current_expr = col_expr.is_in(value)
-                elif (
-                    not lower_value_list
-                ):
-                    current_expr = pl.lit(
-                        False
-                    )
+                elif not lower_value_list:
+                    current_expr = pl.lit(False)
                 else:
                     current_expr = col_expr.str.to_lowercase().is_in(lower_value_list)
             else:
@@ -101,12 +91,11 @@ async def _apply_filters(
                 )
 
             if value and isinstance(value[0], str):
-                is_string_op_type = True
                 lower_value_list = [str(v).lower() for v in value if isinstance(v, str)]
 
                 if not lower_value_list and value:
                     await ctx.warning(
-                        f"Operator 'not_in' for column '{condition.column}' received a list with non-string items when case-insensitive string matching was attempted. Will use original list for matching."
+                        f"Operator 'not_in' for column '{condition.column}' received a list with non-string items when string matching was attempted. Will use original list for matching."
                     )
                     current_expr = ~col_expr.is_in(value)
                 elif not lower_value_list:
@@ -123,7 +112,6 @@ async def _apply_filters(
                 raise ValueError(
                     f"Operator 'contains' requires a string value for column '{condition.column}'."
                 )
-            is_string_op_type = True
             current_expr = col_expr.str.to_lowercase().str.contains(
                 str(value).lower(), literal=True
             )
@@ -132,7 +120,6 @@ async def _apply_filters(
                 raise ValueError(
                     f"Operator 'starts_with' requires a string value for column '{condition.column}'."
                 )
-            is_string_op_type = True
             current_expr = col_expr.str.to_lowercase().str.starts_with(
                 str(value).lower()
             )
@@ -141,7 +128,6 @@ async def _apply_filters(
                 raise ValueError(
                     f"Operator 'ends_with' requires a string value for column '{condition.column}'."
                 )
-            is_string_op_type = True
             current_expr = col_expr.str.to_lowercase().str.ends_with(str(value).lower())
         elif condition.operator == FilterOperator.IS_NULL:
             current_expr = col_expr.is_null()
@@ -149,41 +135,6 @@ async def _apply_filters(
             current_expr = col_expr.is_not_null()
         else:
             raise ValueError(f"Unsupported filter operator: {condition.operator}")
-
-        if condition.case_sensitive is True:
-            df_col_is_string_type = df[condition.column].dtype in [
-                pl.Utf8,
-                pl.Categorical,
-            ]
-
-            if is_string_op_type or (
-                df_col_is_string_type
-                and condition.operator
-                in [
-                    FilterOperator.EQUALS,
-                    FilterOperator.NOT_EQUALS,
-                    FilterOperator.IN,
-                    FilterOperator.NOT_IN,
-                ]
-            ):
-                await ctx.warning(
-                    f"Filter 'case_sensitive=True' on column '{condition.column}' with operator '{condition.operator.value}' "
-                    f"is noted, but string comparisons are now always case-insensitive by default."
-                )
-            elif not is_string_op_type and not (
-                df_col_is_string_type
-                and condition.operator
-                in [
-                    FilterOperator.EQUALS,
-                    FilterOperator.NOT_EQUALS,
-                    FilterOperator.IN,
-                    FilterOperator.NOT_IN,
-                ]
-            ):
-                await ctx.warning(
-                    f"Filter 'case_sensitive=True' on column '{condition.column}' with operator '{condition.operator.value}' "
-                    f"is ignored as the operation is not on string data or not a relevant string comparison type."
-                )
 
         if combined_filter_expr is None:
             combined_filter_expr = current_expr
@@ -299,46 +250,22 @@ def _apply_calculated_fields(
             input_col_expr = pl.col(cfg.input_column)
             constant_expr = pl.lit(cfg.constant_value)
 
-            op_map_col_first = {
-                ArithmeticOperationType.ADD: lambda col, const: col + const,
-                ArithmeticOperationType.SUBTRACT: lambda col, const: col - const,
-                ArithmeticOperationType.MULTIPLY: lambda col, const: col * const,
-                ArithmeticOperationType.DIVIDE: lambda col, const: col / const,
-            }
-            op_map_const_first = {
-                ArithmeticOperationType.ADD: lambda const, col: const + col,
-                ArithmeticOperationType.SUBTRACT: lambda const, col: const - col,
-                ArithmeticOperationType.MULTIPLY: lambda const, col: const * col,
-                ArithmeticOperationType.DIVIDE: lambda const, col: const / col,
-            }
+            # First, check if we have a division by zero scenario with the constant
+            if (
+                cfg.operation == ArithmeticOperationType.DIVIDE
+                and cfg.on_division_by_zero != "propagate_error"
+            ):
 
-            if cfg.column_is_first_operand:
-                polars_expr = op_map_col_first[cfg.operation](
-                    input_col_expr, constant_expr
-                )
-                if (
-                    cfg.operation == ArithmeticOperationType.DIVIDE
-                    and cfg.on_division_by_zero != "propagate_error"
-                    and cfg.constant_value == 0
-                ):
-                    otherwise_val = (
-                        None
-                        if cfg.on_division_by_zero == "null"
-                        else pl.lit(cfg.on_division_by_zero, dtype=pl.Float64)
-                    )
-                    polars_expr = (
-                        pl.when(constant_expr != 0)
-                        .then(polars_expr)
-                        .otherwise(otherwise_val)
-                    )
-            else:
-                polars_expr = op_map_const_first[cfg.operation](
-                    constant_expr, input_col_expr
-                )
-                if (
-                    cfg.operation == ArithmeticOperationType.DIVIDE
-                    and cfg.on_division_by_zero != "propagate_error"
-                ):
+                if cfg.column_is_first_operand and cfg.constant_value == 0:
+                    # column / 0 - always results in the fallback value
+                    if cfg.on_division_by_zero == "null":
+                        polars_expr = pl.lit(None, dtype=pl.Float64)
+                    else:
+                        polars_expr = pl.lit(cfg.on_division_by_zero, dtype=pl.Float64)
+
+                elif not cfg.column_is_first_operand:
+                    # constant / column - need to check column values
+                    base_expr = constant_expr / input_col_expr
                     otherwise_val = (
                         None
                         if cfg.on_division_by_zero == "null"
@@ -346,9 +273,38 @@ def _apply_calculated_fields(
                     )
                     polars_expr = (
                         pl.when(input_col_expr != 0)
-                        .then(polars_expr)
+                        .then(base_expr)
                         .otherwise(otherwise_val)
                     )
+
+                else:
+                    # column / non-zero constant - normal division
+                    polars_expr = input_col_expr / constant_expr
+
+            else:
+                # Not division or propagate_error - just do the operation
+                op_map_col_first = {
+                    ArithmeticOperationType.ADD: lambda col, const: col + const,
+                    ArithmeticOperationType.SUBTRACT: lambda col, const: col - const,
+                    ArithmeticOperationType.MULTIPLY: lambda col, const: col * const,
+                    ArithmeticOperationType.DIVIDE: lambda col, const: col / const,
+                }
+                op_map_const_first = {
+                    ArithmeticOperationType.ADD: lambda const, col: const + col,
+                    ArithmeticOperationType.SUBTRACT: lambda const, col: const - col,
+                    ArithmeticOperationType.MULTIPLY: lambda const, col: const * col,
+                    ArithmeticOperationType.DIVIDE: lambda const, col: const / col,
+                }
+
+                if cfg.column_is_first_operand:
+                    polars_expr = op_map_col_first[cfg.operation](
+                        input_col_expr, constant_expr
+                    )
+                else:
+                    polars_expr = op_map_const_first[cfg.operation](
+                        constant_expr, input_col_expr
+                    )
+
         elif field_config.calculation_type == "percentage_of_column":
             cfg = field_config
             _check_input_columns_exist(cfg.value_column, cfg.total_reference_column)
@@ -427,7 +383,6 @@ async def aggregate_data(
           "column": "column_name_to_filter",
           "operator": "equals",
           "value": "some_value",
-          "case_sensitive": false
         }
       ],
       "group_by_columns": ["column_name1", "column_name2"],
@@ -464,7 +419,7 @@ async def aggregate_data(
         *   A list of `FilterCondition` objects, each defining a criterion to filter the source DataFrame
             *before* any grouping or aggregation takes place.
         *   All conditions in the list are combined using AND logic.
-        *   Each `FilterCondition` has: `column`, `operator`, `value`, `case_sensitive`. (See prompt for details)
+        *   Each `FilterCondition` has: `column`, `operator`, `value`. (See prompt for details)
 
     1.  **`group_by_columns: list[str]` (Required)**
         *   Column names to group by. These columns will be in the output.
@@ -664,7 +619,7 @@ async def aggregate_data(
                 df_for_calc = intermediate_df
                 cols_available_for_calc = columns_after_aggregation_or_grouping
             else:
-                df_for_calc = filtered_df
+                df_for_calc = intermediate_df
                 cols_available_for_calc = df_column_names
 
             final_df = await asyncio.to_thread(

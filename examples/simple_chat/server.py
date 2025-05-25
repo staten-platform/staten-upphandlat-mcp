@@ -8,7 +8,7 @@ from starlette.applications import Starlette
 from starlette.responses import FileResponse
 from starlette.routing import Mount, Route
 
-from upphandlat_mcp.debug_server import mcp
+from upphandlat_mcp.server import mcp
 
 
 @contextlib.asynccontextmanager

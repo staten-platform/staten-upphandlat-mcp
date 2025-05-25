@@ -150,15 +150,6 @@ class FilterCondition(BaseModel):
             "For 'IS_NULL' or 'IS_NOT_NULL', this field is ignored and should be null."
         ),
     )
-    case_sensitive: bool = Field(
-        False,
-        description=(
-            "For string comparison operators (equals, not_equals, contains, starts_with, ends_with), "
-            "specifies if the comparison should be case-sensitive. "
-            "Defaults to False (case-insensitive). Set to True for case-sensitive matching. "
-            "Not applicable to other operators or non-string values."
-        ),
-    )
 
     @model_validator(mode="after")
     def check_value_for_operator(self) -> "FilterCondition":
