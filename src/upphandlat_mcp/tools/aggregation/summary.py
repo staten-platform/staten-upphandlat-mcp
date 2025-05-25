@@ -37,7 +37,7 @@ async def build_summary_row(  # noqa: PLR0912
                 summary_val = None
             elif cfg.summary_function == SummaryFunction.COUNT:
                 summary_val = series.count()
-            elif dtype in pl.NUMERIC_DTYPES:
+            elif dtype.is_numeric():
                 summary_val = getattr(series, cfg.summary_function.value)()
             else:
                 await ctx.warning(
@@ -53,7 +53,7 @@ async def build_summary_row(  # noqa: PLR0912
                 summary_val = settings.first_group_by_column_label
             elif col in group_by_columns:
                 summary_val = None
-            elif dtype in pl.NUMERIC_DTYPES:
+            elif dtype.is_numeric():
                 func = settings.default_numeric_summary_function
                 if df.is_empty() and func != SummaryFunction.COUNT:
                     summary_val = None
