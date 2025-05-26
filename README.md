@@ -98,7 +98,8 @@ A small example server using the streamable HTTP transport is available in
 `examples/simple_chat`. The directory contains a `server.py` that mounts the
 main upphandlat MCP server and a `streamlit_client.py` for manual tool testing.
 For a more natural chat experience there is also a `streamlit_chatbot_client.py`
-where an LLM selects the appropriate tool automatically.
+which can use Anthropic's API to automatically select the appropriate tool when
+`ANTHROPIC_API_KEY` is set in the environment.
 
 Both clients look for the MCP server at the URL specified by the
 `MCP_URL` environment variable. The default is `http://localhost:8000/mcp/`.
@@ -113,7 +114,7 @@ python examples/simple_chat/server.py
 
 ```bash
 streamlit run examples/simple_chat/streamlit_client.py
-# or
+# or enable LLM tool selection
 streamlit run examples/simple_chat/streamlit_chatbot_client.py
 ```
 
@@ -159,7 +160,7 @@ In a separate terminal, launch the Streamlit UI:
 
 ```bash
 streamlit run examples/simple_chat/streamlit_client.py
-# or try the LLM-powered version
+# or try the LLM-powered version (requires ANTHROPIC_API_KEY)
 streamlit run examples/simple_chat/streamlit_chatbot_client.py
 ```
 
