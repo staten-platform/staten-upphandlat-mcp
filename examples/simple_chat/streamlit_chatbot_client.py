@@ -8,6 +8,7 @@ from typing import Any
 
 import streamlit as st
 from anthropic import Anthropic
+
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 
@@ -115,4 +116,3 @@ if user_input := st.chat_input("Ask something about the data..."):
         reply = "\n".join(output)
     st.session_state.messages.append({"role": "assistant", "content": reply})
     st.chat_message("assistant").write(reply)
-
