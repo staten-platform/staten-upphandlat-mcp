@@ -98,7 +98,9 @@ A small example server using the streamable HTTP transport is available in
 `examples/simple_chat`. The directory contains a `server.py` that mounts the
 main upphandlat MCP server and a `streamlit_client.py` for manual tool testing.
 For a more natural chat experience there is also a `streamlit_chatbot_client.py`
-where an LLM selects the appropriate tool automatically.
+that can ask Anthropic's Claude model to select and call tools automatically
+using the MCP connector if you provide an API key via the ``ANTHROPIC_API_KEY``
+environment variable. Without the key, it falls back to a simple heuristic.
 
 Both clients look for the MCP server at the URL specified by the
 `MCP_URL` environment variable. The default is `http://localhost:8000/mcp/`.
@@ -118,11 +120,15 @@ streamlit run examples/simple_chat/streamlit_chatbot_client.py
 ```
 
 Open the printed URL in your browser to interact with the server. By default the
-client connects to `http://localhost:8000/mcp`. Set the `MCP_URL` environment
-variable before launching Streamlit if your server runs on a different URL.
+client connects to ``http://localhost:8000/mcp``. Set the ``MCP_URL``
+environment variable before launching Streamlit if your server runs on a
+different URL. When using Anthropic, ``MCP_URL`` must be accessible via HTTPS
+from the public internet.
 
-Both clients use the `MCP_URL` environment variable to locate the server.
-It defaults to `http://localhost:8000/mcp/`.
+Both clients use the ``MCP_URL`` environment variable to locate the server.
+It defaults to ``http://localhost:8000/mcp/``. To enable automatic tool
+selection via the MCP connector set ``ANTHROPIC_API_KEY`` before starting the
+chat client.
 
 ## Claude Desktop Integration
 
