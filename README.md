@@ -94,35 +94,33 @@ uv run python -m mcp serve src/upphandlat_mcp/server.py:mcp --lifespan-timeout 1
 
 ### Streamlit Chat Example
 
-A small example server using the streamable HTTP transport is available in
-`examples/simple_chat`. The directory contains a `server.py` that mounts the
-main upphandlat MCP server and a `streamlit_client.py` for manual tool testing.
-For a more natural chat experience there is also a `streamlit_chatbot_client.py`
-where an LLM selects the appropriate tool automatically.
+The `examples/simple_chat` folder contains a minimal server and two Streamlit
+clients. These provide a quick way to test the MCP server through a browser.
 
-Both clients look for the MCP server at the URL specified by the
-`MCP_URL` environment variable. The default is `http://localhost:8000/mcp/`.
+1. Install Streamlit if it's not already available:
 
-1. Start the MCP server:
+```bash
+pip install streamlit
+```
+
+2. Start the MCP server in one terminal:
 
 ```bash
 python examples/simple_chat/server.py
 ```
 
-2. Launch the Streamlit UI in another terminal:
+3. In another terminal, launch one of the clients:
 
 ```bash
 streamlit run examples/simple_chat/streamlit_client.py
-# or
+# or try the LLM-powered version
 streamlit run examples/simple_chat/streamlit_chatbot_client.py
 ```
 
-Open the printed URL in your browser to interact with the server. By default the
-client connects to `http://localhost:8000/mcp`. Set the `MCP_URL` environment
-variable before launching Streamlit if your server runs on a different URL.
-
-Both clients use the `MCP_URL` environment variable to locate the server.
-It defaults to `http://localhost:8000/mcp/`.
+The clients connect to `http://localhost:8000/mcp/` by default. Set the
+`MCP_URL` environment variable if your server runs on a different URL. After
+launching, open the printed link (usually `http://localhost:8501`) in your
+browser to interact with the server.
 
 ## Claude Desktop Integration
 
@@ -144,26 +142,6 @@ Replace `[path to repo]` with the absolute path to your local repository directo
 
 Add an `env` section with `MCP_TRANSPORT=streamable-http` if you want the
 server to use streaming HTTP instead of stdio.
-
-## Example Chat Application
-
-The `examples/simple_chat` directory provides a minimal chat demo.
-
-Start the server:
-
-```bash
-python examples/simple_chat/server.py
-```
-
-In a separate terminal, launch the Streamlit UI:
-
-```bash
-streamlit run examples/simple_chat/streamlit_client.py
-# or try the LLM-powered version
-streamlit run examples/simple_chat/streamlit_chatbot_client.py
-```
-
-Open your browser to `http://localhost:8501` to chat with the server.
 
 ## Contributing
 Contributions are welcome! Please open an issue or submit a pull request.
