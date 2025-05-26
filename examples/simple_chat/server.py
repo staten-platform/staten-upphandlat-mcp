@@ -6,7 +6,6 @@ import os
 
 from upphandlat_mcp.server import run_mcp
 
-
 if __name__ == "__main__":
     os.environ.setdefault("MCP_TRANSPORT", "streamable-http")
     run_mcp()
