@@ -12,6 +12,7 @@ except Exception:  # pragma: no cover - Anthropic may not be installed
     Anthropic = None
 
 import streamlit as st
+
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 
@@ -63,7 +64,6 @@ def anthropic_query(message: str) -> str | None:
         elif block.type == "text":
             outputs.append(block.text)
     return "\n".join(outputs) if outputs else None
-
 
 st.title("Upphandlat MCP Chatbot")
 

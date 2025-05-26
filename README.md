@@ -106,26 +106,29 @@ environment variable. The default is `http://localhost:8000/mcp/`.
 Set the `ANTHROPIC_API_KEY` environment variable if you want the chatbot client
 to let Anthropic automatically pick and execute tools via the MCP connector.
 
-1. Start the MCP server:
+```bash
+pip install streamlit
+```
+
+2. Start the MCP server in one terminal:
 
 ```bash
 python examples/simple_chat/server.py
 ```
 
-2. Launch the Streamlit UI in another terminal:
+3. In another terminal, launch one of the clients:
 
 ```bash
 streamlit run examples/simple_chat/streamlit_client.py
 # or enable LLM tool selection
 ANTHROPIC_API_KEY=sk-... streamlit run examples/simple_chat/streamlit_chatbot_client.py
+
 ```
 
-Open the printed URL in your browser to interact with the server. By default the
-client connects to `http://localhost:8000/mcp`. Set the `MCP_URL` environment
-variable before launching Streamlit if your server runs on a different URL.
-
-Both clients use the `MCP_URL` environment variable to locate the server.
-It defaults to `http://localhost:8000/mcp/`.
+The clients connect to `http://localhost:8000/mcp/` by default. Set the
+`MCP_URL` environment variable if your server runs on a different URL. After
+launching, open the printed link (usually `http://localhost:8501`) in your
+browser to interact with the server.
 
 ## Claude Desktop Integration
 
@@ -162,7 +165,7 @@ In a separate terminal, launch the Streamlit UI:
 
 ```bash
 streamlit run examples/simple_chat/streamlit_client.py
-# or try the LLM-powered version
+# or try the LLM-powered version (requires ANTHROPIC_API_KEY)
 streamlit run examples/simple_chat/streamlit_chatbot_client.py
 ```
 
