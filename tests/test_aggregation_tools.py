@@ -1,5 +1,6 @@
 import sys
 import types
+from unittest.mock import AsyncMock
 from pathlib import Path
 
 import pytest
@@ -18,7 +19,7 @@ from upphandlat_mcp.models.mcp_models import (
     TwoColumnArithmeticConfig,
 )
 from upphandlat_mcp.tools.aggregation import aggregate_data
-
+from statens_mima import MCPSharedCache, CacheStats 
 pl = pytest.importorskip("polars")
 
 EXPECTED_PROFIT_A = 12
@@ -31,6 +32,7 @@ EXPECTED_RATIO_A = 230.769
 class DummyCtx:
     def __init__(self, lifespan_context: dict[str, object]):
         self.request_context = types.SimpleNamespace(lifespan_context=lifespan_context)
+        self.server = types.SimpleNamespace(name="test_server") 
 
     async def info(self, *args, **kwargs):
         pass
@@ -50,8 +52,18 @@ def sample_agg_context(tmp_path):
     csv_path = tmp_path / "sample.csv"
     csv_path.write_text("category;value;cost\nA;10;5\nA;20;8\nB;5;4\nB;15;16\n")
     df = pl.read_csv(csv_path, separator=";")
+
+    mock_shared_cache = AsyncMock(spec=MCPSharedCache)
+    async def get_df_side_effect(tool_name, server_name, params, **kwargs):
+        if params.get("source_name") == "sample":
+            return df
+        return None
+    mock_shared_cache.get_dataframe.side_effect = get_df_side_effect
+    mock_shared_cache.health_check.return_value = CacheStats(status="healthy")
+
     lifespan = {
-        "dataframes": {"sample": df},
+        "shared_cache": mock_shared_cache,
+        "available_dataframe_names": ["sample"],
         "settings": None,
         "csv_sources_config": None,
     }

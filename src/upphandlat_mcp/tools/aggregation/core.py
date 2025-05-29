@@ -26,9 +26,20 @@ async def aggregate_data(  # noqa: PLR0912
 
     try:
         lifespan_ctx: LifespanContext = ctx.request_context.lifespan_context
-        df_dict = lifespan_ctx["dataframes"]
-        source_df = df_dict[dataframe_name]
-    except KeyError:
+        shared_cache = lifespan_ctx["shared_cache"]
+        
+        # Ensure ctx.server.name is available, if not, fallback or configure
+        server_name_for_cache = ctx.server.name if hasattr(ctx, 'server') and hasattr(ctx.server, 'name') else "upphandlat_mcp_server"
+
+        source_df = await shared_cache.get_dataframe(
+            tool_name="datasource",
+            server_name=server_name_for_cache,
+            params={"source_name": dataframe_name}
+        )
+        if source_df is None:
+            await ctx.error(f"DataFrame '{dataframe_name}' not found in cache.")
+            return {"error": f"DataFrame '{dataframe_name}' not found in cache. It might not have loaded correctly."}
+    except KeyError as e: # Catch specific KeyError if shared_cache itself is missing
         await ctx.error(f"DataFrame '{dataframe_name}' not found.")
         return {"error": f"DataFrame '{dataframe_name}' not found."}
 

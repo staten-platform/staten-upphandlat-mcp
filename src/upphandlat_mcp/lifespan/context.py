@@ -11,7 +11,7 @@ from urllib.parse import unquote, urlparse
 import polars as pl
 import yaml
 from mcp.server.fastmcp import FastMCP
-
+from statens_mima import MCPSharedCache, create_cache, CacheStats 
 from upphandlat_mcp.core.config import CsvSourcesConfig, Settings
 from upphandlat_mcp.core.config import settings as app_settings
 
@@ -23,7 +23,8 @@ _initialized_successfully = False
 
 
 class LifespanContext(TypedDict):
-    dataframes: dict[str, pl.DataFrame]
+    shared_cache: MCPSharedCache 
+    available_dataframe_names: list[str] 
     settings: Settings
     csv_sources_config: CsvSourcesConfig
 
@@ -37,8 +38,8 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[LifespanContext]:
         with _initialization_lock:
             if not _initialized_successfully:
 
-                current_loaded_dataframes: dict[str, pl.DataFrame] = {}
                 current_csv_sources_config: CsvSourcesConfig
+                current_available_dataframe_names: list[str] = []
 
                 try:
                     config_path = app_settings.CSV_SOURCES_CONFIG_PATH.resolve()
@@ -52,6 +53,16 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[LifespanContext]:
                         raw_config = yaml.safe_load(f)
 
                     current_csv_sources_config = CsvSourcesConfig(**raw_config)
+
+                    # Initialize Statens Mima cache
+                    shared_cache_instance = create_cache(
+                        key_prefix=f"mcp_{server.name}" 
+                    )
+                    # Verify cache health
+                    health = await shared_cache_instance.health_check()
+                    if health.status != "healthy":
+                        logger.error(f"Statens Mima Cache unhealthy: {health.error}")
+                        raise RuntimeError(f"Statens Mima Cache unhealthy: {health.error}")
 
                     for source in current_csv_sources_config.sources:
                         try:
@@ -94,7 +105,15 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[LifespanContext]:
                                 source_to_read = url_string
 
                             df = pl.read_csv(source_to_read, **read_options)
-                            current_loaded_dataframes[source.name] = df
+                            # Store DataFrame in Statens Mima cache
+                            await shared_cache_instance.put_dataframe(
+                                df=df,
+                                tool_name="datasource", 
+                                server_name=server.name, 
+                                params={"source_name": source.name},
+                                metadata={"description": source.description or "", "url": source.url}
+                            )
+                            current_available_dataframe_names.append(source.name)
 
                         except Exception as e_read:
                             logger.error(
@@ -103,7 +122,8 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[LifespanContext]:
                             )
 
                     _global_lifespan_data_cache = {
-                        "dataframes": current_loaded_dataframes,
+                        "shared_cache": shared_cache_instance,
+                        "available_dataframe_names": current_available_dataframe_names,
                         "settings": app_settings,
                         "csv_sources_config": current_csv_sources_config,
                     }

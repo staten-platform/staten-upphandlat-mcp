@@ -2,8 +2,14 @@ import asyncio
 import os
 import sys
 from asyncio.subprocess import DEVNULL
-import json # <--- ADD THIS
-import pytest # <--- ADD THIS
+# Add this at the top of test_server.py to ensure Redis is available for integration tests
+# or skip them. This requires pytest-redis to be installed or similar skip logic.
+# For simplicity, we'll assume Redis is running for these integration tests.
+# If you want to make Redis optional, you'd typically use a marker:
+# redis_required = pytest.mark.skipif(not is_redis_running(), reason="Redis server is not running")
+
+import json 
+import pytest 
 
 yaml = pytest.importorskip("yaml")
 
@@ -71,6 +77,9 @@ async def test_server_stdio(sample_config, monkeypatch):
     monkeypatch.setenv("CSV_SOURCES_CONFIG_PATH", str(sample_config))
     monkeypatch.setenv("MCP_TRANSPORT", "stdio")
     monkeypatch.setenv("POLARS_MAX_THREADS", "1")
+    # For stdio tests, Statens Mima will try to connect to Redis by default.
+    # Ensure REDIS_HOST, REDIS_PORT etc. are available if not using localhost:6379
+    # or that relevant statens-mima env vars are set for mock/test mode if available.
 
     server_params = StdioServerParameters(
         command=sys.executable,
@@ -95,6 +104,8 @@ async def test_server_streamable_http(sample_config, monkeypatch):
             "POLARS_MAX_THREADS": "1",
         }
     )
+    # For streamable-http tests, Statens Mima will try to connect to Redis.
+    # Ensure Redis is running and accessible.
     proc = await asyncio.create_subprocess_exec(
         sys.executable,
         "-m",

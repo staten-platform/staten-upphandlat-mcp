@@ -33,17 +33,18 @@ async def list_available_dataframes(
     """
     try:
         lifespan_ctx: LifespanContext = ctx.request_context.lifespan_context
-        dataframes_dict = lifespan_ctx["dataframes"]
+        available_names = lifespan_ctx.get("available_dataframe_names", [])
         csv_sources_config: CsvSourcesConfig = lifespan_ctx["csv_sources_config"]
+        # shared_cache = lifespan_ctx["shared_cache"] # Not strictly needed if we trust available_dataframe_names
 
-        descriptions_map: dict[str, str | None] = {}
+        descriptions_map: dict[str, str] = {} # Ensure type consistency
         if csv_sources_config and csv_sources_config.sources:
             descriptions_map = {
-                source.name: source.description for source in csv_sources_config.sources
+                source.name: source.description or "No description available." for source in csv_sources_config.sources # Ensure description is str
             }
 
         result_list: list[dict[str, str]] = []
-        for name in dataframes_dict.keys():
+        for name in available_names:
             description = descriptions_map.get(name)
             description_to_use = (
                 description if description else "No description available."
@@ -57,9 +58,9 @@ async def list_available_dataframes(
 
             result_list.append({"name": name, "description": description_to_use})
 
-        if not result_list and not dataframes_dict:
+        if not result_list and not available_names:
             logger.info("No dataframes available in the context.")
-        elif not result_list and dataframes_dict:
+        elif not result_list and available_names:
             logger.warning(
                 "Dataframes dictionary has keys but result list is empty. Check logic."
             )
@@ -107,15 +108,22 @@ async def list_columns(ctx: Context, dataframe_name: str) -> list[str] | dict[st
     """
     try:
         lifespan_ctx: LifespanContext = ctx.request_context.lifespan_context
-        df_dict = lifespan_ctx["dataframes"]
-        if dataframe_name not in df_dict:
+        shared_cache = lifespan_ctx["shared_cache"]
+        server_name_for_cache = ctx.server.name if hasattr(ctx, 'server') and hasattr(ctx.server, 'name') else "upphandlat_mcp_server"
+
+        df = await shared_cache.get_dataframe(
+            tool_name="datasource",
+            server_name=server_name_for_cache,
+            params={"source_name": dataframe_name}
+        )
+
+        if df is None:
             await ctx.error(
-                f"DataFrame '{dataframe_name}' not found. Available: {list(df_dict.keys())}"
+                f"DataFrame '{dataframe_name}' not found in cache. Available names: {lifespan_ctx.get('available_dataframe_names', [])}"
             )
             return {
                 "error": f"DataFrame '{dataframe_name}' not found. Use list_available_dataframes() to see options."
             }
-        df: pl.DataFrame = df_dict[dataframe_name]
         return get_column_names_from_df(df)
     except KeyError:
         await ctx.error(
@@ -163,15 +171,21 @@ async def fuzzy_search_column_values(
 
     try:
         lifespan_ctx: LifespanContext = ctx.request_context.lifespan_context
-        df_dict = lifespan_ctx["dataframes"]
-        if dataframe_name not in df_dict:
+        shared_cache = lifespan_ctx["shared_cache"]
+        server_name_for_cache = ctx.server.name if hasattr(ctx, 'server') and hasattr(ctx.server, 'name') else "upphandlat_mcp_server"
+
+        df = await shared_cache.get_dataframe(
+            tool_name="datasource",
+            server_name=server_name_for_cache,
+            params={"source_name": dataframe_name}
+        )
+        if df is None:
             await ctx.error(
-                f"DataFrame '{dataframe_name}' not found. Available: {list(df_dict.keys())}"
+                f"DataFrame '{dataframe_name}' not found in cache. Available names: {lifespan_ctx.get('available_dataframe_names', [])}"
             )
             return {
                 "error": f"DataFrame '{dataframe_name}' not found. Use list_available_dataframes() to see options."
             }
-        df: pl.DataFrame = df_dict[dataframe_name]
     except KeyError:
         await ctx.error(
             "DataFrame dictionary 'dataframes' not found in lifespan context."
@@ -257,15 +271,21 @@ async def get_schema(
     """
     try:
         lifespan_ctx: LifespanContext = ctx.request_context.lifespan_context
-        df_dict = lifespan_ctx["dataframes"]
-        if dataframe_name not in df_dict:
+        shared_cache = lifespan_ctx["shared_cache"]
+        server_name_for_cache = ctx.server.name if hasattr(ctx, 'server') and hasattr(ctx.server, 'name') else "upphandlat_mcp_server"
+
+        df = await shared_cache.get_dataframe(
+            tool_name="datasource",
+            server_name=server_name_for_cache,
+            params={"source_name": dataframe_name}
+        )
+        if df is None:
             await ctx.error(
-                f"DataFrame '{dataframe_name}' not found. Available: {list(df_dict.keys())}"
+                f"DataFrame '{dataframe_name}' not found in cache. Available names: {lifespan_ctx.get('available_dataframe_names', [])}"
             )
             return {
                 "error": f"DataFrame '{dataframe_name}' not found. Use list_available_dataframes() to see options."
             }
-        df: pl.DataFrame = df_dict[dataframe_name]
         return get_schema_from_df(df)
     except KeyError:
         await ctx.error(
@@ -304,15 +324,21 @@ async def get_distinct_column_values(
     """
     try:
         lifespan_ctx: LifespanContext = ctx.request_context.lifespan_context
-        df_dict = lifespan_ctx["dataframes"]
-        if dataframe_name not in df_dict:
+        shared_cache = lifespan_ctx["shared_cache"]
+        server_name_for_cache = ctx.server.name if hasattr(ctx, 'server') and hasattr(ctx.server, 'name') else "upphandlat_mcp_server"
+
+        df = await shared_cache.get_dataframe(
+            tool_name="datasource",
+            server_name=server_name_for_cache,
+            params={"source_name": dataframe_name}
+        )
+        if df is None:
             await ctx.error(
-                f"DataFrame '{dataframe_name}' not found. Available: {list(df_dict.keys())}"
+                f"DataFrame '{dataframe_name}' not found in cache. Available names: {lifespan_ctx.get('available_dataframe_names', [])}"
             )
             return {
                 "error": f"DataFrame '{dataframe_name}' not found. Use list_available_dataframes() to see options."
             }
-        df: pl.DataFrame = df_dict[dataframe_name]
     except KeyError:
         await ctx.error(
             "DataFrame dictionary 'dataframes' not found in lifespan context."
