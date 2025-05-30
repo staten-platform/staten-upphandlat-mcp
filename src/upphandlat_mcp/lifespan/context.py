@@ -26,6 +26,7 @@ class LifespanContext(TypedDict):
     available_dataframe_names: list[str]
     settings: Settings
     csv_sources_config: CsvSourcesConfig
+    server_name: str
 
 
 @asynccontextmanager
@@ -130,6 +131,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[LifespanContext]:
                         "available_dataframe_names": current_available_dataframe_names,
                         "settings": app_settings,
                         "csv_sources_config": current_csv_sources_config,
+                        "server_name": server.name,
                     }
                     _initialized_successfully = True
 

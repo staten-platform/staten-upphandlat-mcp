@@ -102,11 +102,7 @@ async def list_columns(ctx: Context[Any, Any], dataframe_name: str) -> list[str]
     try:
         lifespan_ctx: LifespanContext = ctx.request_context.lifespan_context
         shared_cache = lifespan_ctx["shared_cache"]
-        server_name_for_cache = (
-            ctx.server.name
-            if hasattr(ctx, "server") and hasattr(ctx.server, "name")
-            else "upphandlat_mcp_server"
-        )
+        server_name_for_cache = lifespan_ctx["server_name"]
 
         df = await shared_cache.get_dataframe(
             tool_name="datasource",
@@ -169,11 +165,7 @@ async def fuzzy_search_column_values(
     try:
         lifespan_ctx: LifespanContext = ctx.request_context.lifespan_context
         shared_cache = lifespan_ctx["shared_cache"]
-        server_name_for_cache = (
-            ctx.server.name
-            if hasattr(ctx, "server") and hasattr(ctx.server, "name")
-            else "upphandlat_mcp_server"
-        )
+        server_name_for_cache = lifespan_ctx["server_name"]
 
         df = await shared_cache.get_dataframe(
             tool_name="datasource",
@@ -273,11 +265,7 @@ async def get_schema(
     try:
         lifespan_ctx: LifespanContext = ctx.request_context.lifespan_context
         shared_cache = lifespan_ctx["shared_cache"]
-        server_name_for_cache = (
-            ctx.server.name
-            if hasattr(ctx, "server") and hasattr(ctx.server, "name")
-            else "upphandlat_mcp_server"
-        )
+        server_name_for_cache = lifespan_ctx["server_name"]
 
         df = await shared_cache.get_dataframe(
             tool_name="datasource",
@@ -330,11 +318,7 @@ async def get_distinct_column_values(
     try:
         lifespan_ctx: LifespanContext = ctx.request_context.lifespan_context
         shared_cache = lifespan_ctx["shared_cache"]
-        server_name_for_cache = (
-            ctx.server.name
-            if hasattr(ctx, "server") and hasattr(ctx.server, "name")
-            else "upphandlat_mcp_server"
-        )
+        server_name_for_cache = lifespan_ctx["server_name"]
 
         df = await shared_cache.get_dataframe(
             tool_name="datasource",
