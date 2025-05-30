@@ -3,7 +3,6 @@
 import logging
 
 from mcp.server.fastmcp import FastMCP
-
 from upphandlat_mcp.core.config import settings as app_settings
 from upphandlat_mcp.lifespan.context import app_lifespan
 from upphandlat_mcp.tools.aggregation_tools import aggregate_data
@@ -34,6 +33,7 @@ mcp.tool()(get_schema)
 mcp.tool()(get_distinct_column_values)
 mcp.tool()(fuzzy_search_column_values)
 mcp.tool()(aggregate_data)
+
 
 def run_mcp() -> None:
     """Run the MCP server using the configured transport."""
