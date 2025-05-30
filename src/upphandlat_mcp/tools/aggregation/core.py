@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 async def aggregate_data(  # noqa: PLR0912
-    ctx: Context,
+    ctx: Context[Any],
     dataframe_name: str,
     request: AggregationRequest,
 ) -> list[dict[str, Any]] | dict[str, Any]:

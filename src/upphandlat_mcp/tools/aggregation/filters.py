@@ -4,13 +4,14 @@ from collections.abc import Iterable
 
 import polars as pl
 from mcp.server.fastmcp import Context
+from typing import Any
 
 from upphandlat_mcp.models.mcp_models import FilterCondition, FilterOperator
 
 
 async def build_filter_expr(  # noqa: PLR0911,PLR0912
     condition: FilterCondition,
-    ctx: Context,
+    ctx: Context[Any],
 ) -> pl.Expr:
     """Return a Polars expression for a single filter condition."""
     col_expr = pl.col(condition.column)
@@ -99,7 +100,7 @@ async def build_filter_expr(  # noqa: PLR0911,PLR0912
 async def apply_filters(
     df: pl.DataFrame,
     conditions: Iterable[FilterCondition] | None,
-    ctx: Context,
+    ctx: Context[Any],
 ) -> pl.DataFrame:
     """Apply all filter conditions to the DataFrame."""
     if not conditions:

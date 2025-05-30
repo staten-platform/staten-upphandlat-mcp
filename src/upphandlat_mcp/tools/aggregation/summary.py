@@ -12,7 +12,7 @@ async def build_summary_row(  # noqa: PLR0912
     df: pl.DataFrame,
     settings: SummaryRowSettings,
     group_by_columns: list[str],
-    ctx: Context,
+    ctx: Context[Any],
 ) -> dict[str, Any]:
     summary: dict[str, Any] = {}
     output_columns = df.columns

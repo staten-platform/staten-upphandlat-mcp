@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import polars as pl
 from mcp.server.fastmcp import Context
+from typing import Any
 
 from upphandlat_mcp.models.mcp_models import (
     ArithmeticOperationType,
@@ -101,7 +102,7 @@ def apply_calculated_fields(
     df: pl.DataFrame,
     configs: list[CalculatedFieldType] | None,
     available_columns: set[str],
-    ctx: Context | None = None,
+    ctx: Context[Any] | None = None,
 ) -> pl.DataFrame:
     if not configs:
         return df
