@@ -337,7 +337,7 @@ async def get_distinct_column_values(
 
         df = await shared_cache.get_dataframe(
             tool_name="datasource",
-            server_name=server_name_cache,
+            server_name=server_name_for_cache,
             params={"source_name": dataframe_name},
         )
         if df is None:
