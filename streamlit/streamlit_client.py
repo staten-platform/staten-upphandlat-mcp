@@ -13,24 +13,15 @@ from mcp.client.streamable_http import streamablehttp_client
 
 MCP_URL = os.getenv("MCP_URL", "http://localhost:8000/mcp/")
 
-TOOL_EXAMPLES = {
-    "list_available_dataframes": [
-        {
-            "name": "List all data sources",
-            "args": {}
-        }
-    ],
+TOOL_EXAMPLES: dict[str, list[dict[str, Any]]] = {
     "list_columns": [
         {
             "name": "List columns for first dataframe",
-            "args": {"dataframe_name": "sample_data"}
+            "args": {"dataframe_name": "sample_data"},
         }
     ],
     "get_schema": [
-        {
-            "name": "Get schema for dataframe",
-            "args": {"dataframe_name": "sample_data"}
-        }
+        {"name": "Get schema for dataframe", "args": {"dataframe_name": "sample_data"}}
     ],
     "get_distinct_column_values": [
         {
@@ -38,8 +29,8 @@ TOOL_EXAMPLES = {
             "args": {
                 "dataframe_name": "sample_data",
                 "column_name": "category",
-                "limit": 10
-            }
+                "limit": 10,
+            },
         },
         {
             "name": "Get sorted distinct values",
@@ -48,9 +39,9 @@ TOOL_EXAMPLES = {
                 "column_name": "amount",
                 "sort_by_column": "amount",
                 "sort_descending": True,
-                "limit": 5
-            }
-        }
+                "limit": 5,
+            },
+        },
     ],
     "fuzzy_search_column_values": [
         {
@@ -60,8 +51,8 @@ TOOL_EXAMPLES = {
                 "column_name": "description",
                 "search_term": "office",
                 "limit": 5,
-                "score_cutoff": 70.0
-            }
+                "score_cutoff": 70.0,
+            },
         }
     ],
     "aggregate_data": [
@@ -72,13 +63,10 @@ TOOL_EXAMPLES = {
                 "request": {
                     "group_by_columns": ["category"],
                     "aggregations": [
-                        {
-                            "column": "amount",
-                            "functions": ["sum", "count"]
-                        }
-                    ]
-                }
-            }
+                        {"column": "amount", "functions": ["sum", "count"]}
+                    ],
+                },
+            },
         },
         {
             "name": "Filtered aggregation with calculations",
@@ -87,17 +75,10 @@ TOOL_EXAMPLES = {
                 "request": {
                     "group_by_columns": ["category"],
                     "filters": [
-                        {
-                            "column": "amount",
-                            "operator": "greater_than",
-                            "value": 100
-                        }
+                        {"column": "amount", "operator": "greater_than", "value": 100}
                     ],
                     "aggregations": [
-                        {
-                            "column": "amount",
-                            "functions": ["sum", "mean"]
-                        }
+                        {"column": "amount", "functions": ["sum", "mean"]}
                     ],
                     "calculated_fields": [
                         {
@@ -105,17 +86,17 @@ TOOL_EXAMPLES = {
                             "value_column": "amount_sum",
                             "total_reference_column": "amount_sum",
                             "output_column_name": "percentage_of_total",
-                            "scale_factor": 100
+                            "scale_factor": 100,
                         }
                     ],
                     "summary_settings": {
                         "enabled": True,
-                        "first_group_by_column_label": "TOTAL"
-                    }
-                }
-            }
-        }
-    ]
+                        "first_group_by_column_label": "TOTAL",
+                    },
+                },
+            },
+        },
+    ],
 }
 
 
@@ -157,22 +138,22 @@ selected_tool = st.selectbox("Tool", tool_names)
 if selected_tool and selected_tool in TOOL_EXAMPLES:
     st.subheader("Example Queries")
     examples = TOOL_EXAMPLES[selected_tool]
-    
+
     col1, col2 = st.columns([3, 1])
     with col1:
         example_names = [ex["name"] for ex in examples]
         selected_example = st.selectbox("Choose an example:", [""] + example_names)
-    
+
     with col2:
         if st.button("Load Example") and selected_example:
-            example_args = next(ex["args"] for ex in examples if ex["name"] == selected_example)
+            example_args = next(
+                ex["args"] for ex in examples if ex["name"] == selected_example
+            )
             st.session_state.args_json = json.dumps(example_args, indent=2)
 
 # Arguments input
 args_json = st.text_area(
-    "Arguments (JSON)", 
-    value=st.session_state.get("args_json", "{}"),
-    height=200
+    "Arguments (JSON)", value=st.session_state.get("args_json", "{}"), height=200
 )
 
 if st.button("Run"):
