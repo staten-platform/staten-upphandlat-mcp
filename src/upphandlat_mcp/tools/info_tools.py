@@ -37,10 +37,11 @@ async def list_available_dataframes(
         csv_sources_config: CsvSourcesConfig = lifespan_ctx["csv_sources_config"]
         # shared_cache = lifespan_ctx["shared_cache"] # Not strictly needed if we trust available_dataframe_names
 
-        descriptions_map: dict[str, str] = {} # Ensure type consistency
+        descriptions_map: dict[str, str] = {}  # Ensure type consistency
         if csv_sources_config and csv_sources_config.sources:
             descriptions_map = {
-                source.name: source.description or "No description available." for source in csv_sources_config.sources # Ensure description is str
+                source.name: source.description or "No description available."
+                for source in csv_sources_config.sources  # Ensure description is str
             }
 
         result_list: list[dict[str, str]] = []
@@ -66,7 +67,11 @@ async def list_available_dataframes(
             )
 
         # --- MODIFICATION START ---
-        if isinstance(result_list, list) and len(result_list) == 1 and isinstance(result_list[0], dict):
+        if (
+            isinstance(result_list, list)
+            and len(result_list) == 1
+            and isinstance(result_list[0], dict)
+        ):
             logger.info(
                 "list_available_dataframes is returning a single-item list containing one dictionary. "
                 "Note: The MCP framework with json_response=True might serialize this as a single JSON object "
@@ -109,12 +114,16 @@ async def list_columns(ctx: Context, dataframe_name: str) -> list[str] | dict[st
     try:
         lifespan_ctx: LifespanContext = ctx.request_context.lifespan_context
         shared_cache = lifespan_ctx["shared_cache"]
-        server_name_for_cache = ctx.server.name if hasattr(ctx, 'server') and hasattr(ctx.server, 'name') else "upphandlat_mcp_server"
+        server_name_for_cache = (
+            ctx.server.name
+            if hasattr(ctx, "server") and hasattr(ctx.server, "name")
+            else "upphandlat_mcp_server"
+        )
 
         df = await shared_cache.get_dataframe(
             tool_name="datasource",
             server_name=server_name_for_cache,
-            params={"source_name": dataframe_name}
+            params={"source_name": dataframe_name},
         )
 
         if df is None:
@@ -172,12 +181,16 @@ async def fuzzy_search_column_values(
     try:
         lifespan_ctx: LifespanContext = ctx.request_context.lifespan_context
         shared_cache = lifespan_ctx["shared_cache"]
-        server_name_for_cache = ctx.server.name if hasattr(ctx, 'server') and hasattr(ctx.server, 'name') else "upphandlat_mcp_server"
+        server_name_for_cache = (
+            ctx.server.name
+            if hasattr(ctx, "server") and hasattr(ctx.server, "name")
+            else "upphandlat_mcp_server"
+        )
 
         df = await shared_cache.get_dataframe(
             tool_name="datasource",
             server_name=server_name_for_cache,
-            params={"source_name": dataframe_name}
+            params={"source_name": dataframe_name},
         )
         if df is None:
             await ctx.error(
@@ -272,12 +285,16 @@ async def get_schema(
     try:
         lifespan_ctx: LifespanContext = ctx.request_context.lifespan_context
         shared_cache = lifespan_ctx["shared_cache"]
-        server_name_for_cache = ctx.server.name if hasattr(ctx, 'server') and hasattr(ctx.server, 'name') else "upphandlat_mcp_server"
+        server_name_for_cache = (
+            ctx.server.name
+            if hasattr(ctx, "server") and hasattr(ctx.server, "name")
+            else "upphandlat_mcp_server"
+        )
 
         df = await shared_cache.get_dataframe(
             tool_name="datasource",
             server_name=server_name_for_cache,
-            params={"source_name": dataframe_name}
+            params={"source_name": dataframe_name},
         )
         if df is None:
             await ctx.error(
@@ -325,12 +342,16 @@ async def get_distinct_column_values(
     try:
         lifespan_ctx: LifespanContext = ctx.request_context.lifespan_context
         shared_cache = lifespan_ctx["shared_cache"]
-        server_name_for_cache = ctx.server.name if hasattr(ctx, 'server') and hasattr(ctx.server, 'name') else "upphandlat_mcp_server"
+        server_name_for_cache = (
+            ctx.server.name
+            if hasattr(ctx, "server") and hasattr(ctx.server, "name")
+            else "upphandlat_mcp_server"
+        )
 
         df = await shared_cache.get_dataframe(
             tool_name="datasource",
             server_name=server_name_for_cache,
-            params={"source_name": dataframe_name}
+            params={"source_name": dataframe_name},
         )
         if df is None:
             await ctx.error(
