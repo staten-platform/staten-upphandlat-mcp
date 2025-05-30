@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 async def list_available_dataframes(
-    ctx: Context[Any],
+    ctx: Context[Any, Any],
 ) -> list[dict[str, str]] | dict[str, str]:
     """
     Retrieves the list of names and descriptions for all loaded DataFrames.
@@ -99,7 +99,7 @@ async def list_available_dataframes(
         return {"error": f"An unexpected error occurred: {str(e)}"}
 
 
-async def list_columns(ctx: Context[Any], dataframe_name: str) -> list[str] | dict[str, str]:
+async def list_columns(ctx: Context[Any, Any], dataframe_name: str) -> list[str] | dict[str, str]:
     """
     Retrieves the list of column names from the specified DataFrame.
 
@@ -148,7 +148,7 @@ async def list_columns(ctx: Context[Any], dataframe_name: str) -> list[str] | di
 
 
 async def fuzzy_search_column_values(
-    ctx: Context[Any],
+    ctx: Context[Any, Any],
     dataframe_name: str,
     column_name: str,
     search_term: str,
@@ -270,7 +270,7 @@ async def fuzzy_search_column_values(
 
 
 async def get_schema(
-    ctx: Context[Any], dataframe_name: str
+    ctx: Context[Any, Any], dataframe_name: str
 ) -> dict[str, str] | dict[str, Any]:
     """
     Retrieves the schema of the specified DataFrame.
@@ -318,7 +318,7 @@ async def get_schema(
 
 
 async def get_distinct_column_values(
-    ctx: Context[Any],
+    ctx: Context[Any, Any],
     dataframe_name: str,
     column_name: str,
     sort_by_column: str | None = None,
