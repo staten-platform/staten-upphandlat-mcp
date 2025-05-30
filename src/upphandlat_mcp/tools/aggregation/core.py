@@ -29,11 +29,11 @@ async def aggregate_data(  # noqa: PLR0912
         shared_cache = lifespan_ctx["shared_cache"]
         
         # Ensure ctx.server.name is available, if not, fallback or configure
-        server_name_for_cache = ctx.server.name if hasattr(ctx, 'server') and hasattr(ctx.server, 'name') else "upphandlat_mcp_server"
+        server_name_for_cache = lifespan_ctx["server_name"]
 
         source_df = await shared_cache.get_dataframe(
             tool_name="datasource",
-            server_name=server_name_for_cache,
+            server_name=server_name_for_cache, # This will now use the correct server name
             params={"source_name": dataframe_name}
         )
         if source_df is None:
