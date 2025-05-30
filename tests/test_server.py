@@ -37,7 +37,7 @@ def sample_config(tmp_path):
             }
         ],
     }
-    config_path = tmp_path / "config.yaml"
+    config_path = tmp_path / "test_config.yaml"
     config_path.write_text(yaml.safe_dump(config))
     return config_path
 
@@ -179,4 +179,3 @@ async def test_server_streamable_http(sample_config, monkeypatch):
         if proc.returncode is None:
             proc.terminate()
         await proc.wait()
-

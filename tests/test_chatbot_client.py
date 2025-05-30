@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import sys
+import yaml
 from pathlib import Path
 from typing import Any # Added for type hint
 
@@ -275,8 +276,8 @@ def sample_config(tmp_path: Path) -> Path:
             }
         ],
     }
-    config_path = tmp_path / "config.json"
-    config_path.write_text(json.dumps(config))
+    config_path = tmp_path / "test_config.yaml"
+    config_path.write_text(yaml.safe_dump(config))
     return config_path
 
 
