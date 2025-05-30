@@ -66,10 +66,8 @@ async def list_available_dataframes(
                 "Dataframes dictionary has keys but result list is empty. Check logic."
             )
 
-        # Force return as a single JSON object for MCP framework
-        if len(result_list) == 1:
-            return result_list[0]  # Return single dict for single item
-        return {"dataframes": result_list}  # Wrap multiple items in container object
+        # Return consistent format - always return the list
+        return result_list
 
     except KeyError as e:
         missing_key = e.args[0] if e.args else "Unknown key"
