@@ -3,7 +3,7 @@ import logging
 from typing import Any
 
 from mcp.server.fastmcp import Context
-
+from statens_response import statens_dataframe_response
 from upphandlat_mcp.lifespan.context import LifespanContext
 from upphandlat_mcp.models.mcp_models import AggregationRequest
 
@@ -15,6 +15,7 @@ from .summary import build_summary_row
 logger = logging.getLogger(__name__)
 
 
+@statens_dataframe_response()
 async def aggregate_data(  # noqa: PLR0912
     ctx: Context[Any, Any],
     dataframe_name: str,
@@ -25,19 +26,21 @@ async def aggregate_data(  # noqa: PLR0912
     try:
         lifespan_ctx: LifespanContext = ctx.request_context.lifespan_context
         shared_cache = lifespan_ctx["shared_cache"]
-        
+
         # Ensure ctx.server.name is available, if not, fallback or configure
         server_name_for_cache = lifespan_ctx["server_name"]
 
         source_df = await shared_cache.get_dataframe(
             tool_name="datasource",
-            server_name=server_name_for_cache, # This will now use the correct server name
-            params={"source_name": dataframe_name}
+            server_name=server_name_for_cache,  # This will now use the correct server name
+            params={"source_name": dataframe_name},
         )
         if source_df is None:
             await ctx.error(f"DataFrame '{dataframe_name}' not found in cache.")
-            return {"error": f"DataFrame '{dataframe_name}' not found in cache. It might not have loaded correctly."}
-    except KeyError as e: # Catch specific KeyError if shared_cache itself is missing
+            return {
+                "error": f"DataFrame '{dataframe_name}' not found in cache. It might not have loaded correctly."
+            }
+    except KeyError as e:  # Catch specific KeyError if shared_cache itself is missing
         await ctx.error(f"DataFrame '{dataframe_name}' not found.")
         return {"error": f"DataFrame '{dataframe_name}' not found."}
 
