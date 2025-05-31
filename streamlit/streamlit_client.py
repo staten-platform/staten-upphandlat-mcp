@@ -17,27 +17,30 @@ TOOL_EXAMPLES: dict[str, list[dict[str, Any]]] = {
     "list_columns": [
         {
             "name": "List columns for first dataframe",
-            "args": {"dataframe_name": "sample_data"},
+            "args": {"dataframe_name": "kontrakterat_varde_upphandlingsmyndigheten"},
         }
     ],
     "get_schema": [
-        {"name": "Get schema for dataframe", "args": {"dataframe_name": "sample_data"}}
+        {
+            "name": "Get schema for dataframe",
+            "args": {"dataframe_name": "kontrakterat_varde_upphandlingsmyndigheten"},
+        }
     ],
     "get_distinct_column_values": [
         {
             "name": "Get distinct values from a column",
             "args": {
-                "dataframe_name": "sample_data",
-                "column_name": "category",
+                "dataframe_name": "kontrakterat_varde_upphandlingsmyndigheten",
+                "column_name": "Namn för köpare",
                 "limit": 10,
             },
         },
         {
             "name": "Get sorted distinct values",
             "args": {
-                "dataframe_name": "sample_data",
-                "column_name": "amount",
-                "sort_by_column": "amount",
+                "dataframe_name": "kontrakterat_varde_upphandlingsmyndigheten",
+                "column_name": "Kontrakterat värde, Summa",
+                "sort_by_column": "Kontrakterat värde, Summa",
                 "sort_descending": True,
                 "limit": 5,
             },
@@ -47,7 +50,7 @@ TOOL_EXAMPLES: dict[str, list[dict[str, Any]]] = {
         {
             "name": "Search for similar text values",
             "args": {
-                "dataframe_name": "sample_data",
+                "dataframe_name": "kontrakterat_varde_upphandlingsmyndigheten",
                 "column_name": "description",
                 "search_term": "office",
                 "limit": 5,
@@ -59,11 +62,14 @@ TOOL_EXAMPLES: dict[str, list[dict[str, Any]]] = {
         {
             "name": "Basic grouping and sum",
             "args": {
-                "dataframe_name": "sample_data",
+                "dataframe_name": "kontrakterat_varde_upphandlingsmyndigheten",
                 "request": {
-                    "group_by_columns": ["category"],
+                    "group_by_columns": ["Namn för köpare"],
                     "aggregations": [
-                        {"column": "amount", "functions": ["sum", "count"]}
+                        {
+                            "column": "Kontrakterat värde, Summa",
+                            "functions": ["sum", "count"],
+                        }
                     ],
                 },
             },
@@ -71,20 +77,27 @@ TOOL_EXAMPLES: dict[str, list[dict[str, Any]]] = {
         {
             "name": "Filtered aggregation with calculations",
             "args": {
-                "dataframe_name": "sample_data",
+                "dataframe_name": "kontrakterat_varde_upphandlingsmyndigheten",
                 "request": {
-                    "group_by_columns": ["category"],
+                    "group_by_columns": ["Namn för köpare"],
                     "filters": [
-                        {"column": "amount", "operator": "greater_than", "value": 100}
+                        {
+                            "column": "Kontrakterat värde, Summa",
+                            "operator": "greater_than",
+                            "value": 100,
+                        }
                     ],
                     "aggregations": [
-                        {"column": "amount", "functions": ["sum", "mean"]}
+                        {
+                            "column": "Kontrakterat värde, Summa",
+                            "functions": ["sum", "mean"],
+                        }
                     ],
                     "calculated_fields": [
                         {
                             "calculation_type": "percentage_of_column",
-                            "value_column": "amount_sum",
-                            "total_reference_column": "amount_sum",
+                            "value_column": "Kontrakterat värde, Summa_sum",
+                            "total_reference_column": "Kontrakterat värde, Summa_sum",
                             "output_column_name": "percentage_of_total",
                             "scale_factor": 100,
                         }
