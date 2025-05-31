@@ -4,7 +4,7 @@ from typing import Any
 
 from mcp.server.fastmcp import Context
 from statens_response import statens_dataframe_response
-from upphandlat_mcp.lifespan.context import LifespanContext
+from upphandlat_mcp.lifespan.context import LifespanContext, get_or_reload_dataframe
 from upphandlat_mcp.models.mcp_models import AggregationRequest
 
 from .aggregations import build_polars_aggregation_expressions
@@ -25,16 +25,8 @@ async def aggregate_data(  # noqa: PLR0912
 
     try:
         lifespan_ctx: LifespanContext = ctx.request_context.lifespan_context
-        shared_cache = lifespan_ctx["shared_cache"]
 
-        # Ensure ctx.server.name is available, if not, fallback or configure
-        server_name_for_cache = lifespan_ctx["server_name"]
-
-        source_df = await shared_cache.get_dataframe(
-            tool_name="datasource",
-            server_name=server_name_for_cache,  # This will now use the correct server name
-            params={"source_name": dataframe_name},
-        )
+        source_df = await get_or_reload_dataframe(lifespan_ctx, dataframe_name)
         if source_df is None:
             await ctx.error(f"DataFrame '{dataframe_name}' not found in cache.")
             return {

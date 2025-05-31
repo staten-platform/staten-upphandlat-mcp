@@ -6,7 +6,7 @@ from mcp.server.fastmcp import Context
 from polars.exceptions import ColumnNotFoundError
 from rapidfuzz import fuzz, process, utils
 from upphandlat_mcp.core.config import CsvSourcesConfig
-from upphandlat_mcp.lifespan.context import LifespanContext
+from upphandlat_mcp.lifespan.context import LifespanContext, get_or_reload_dataframe
 from upphandlat_mcp.utils.dataframe_ops import (
     get_column_names_from_df,
     get_schema_from_df,
@@ -101,14 +101,8 @@ async def list_columns(ctx: Context[Any, Any], dataframe_name: str) -> list[str]
     """
     try:
         lifespan_ctx: LifespanContext = ctx.request_context.lifespan_context
-        shared_cache = lifespan_ctx["shared_cache"]
-        server_name_for_cache = lifespan_ctx["server_name"]
 
-        df = await shared_cache.get_dataframe(
-            tool_name="datasource",
-            server_name=server_name_for_cache,
-            params={"source_name": dataframe_name},
-        )
+        df = await get_or_reload_dataframe(lifespan_ctx, dataframe_name)
 
         if df is None:
             await ctx.error(
@@ -164,14 +158,8 @@ async def fuzzy_search_column_values(
 
     try:
         lifespan_ctx: LifespanContext = ctx.request_context.lifespan_context
-        shared_cache = lifespan_ctx["shared_cache"]
-        server_name_for_cache = lifespan_ctx["server_name"]
 
-        df = await shared_cache.get_dataframe(
-            tool_name="datasource",
-            server_name=server_name_for_cache,
-            params={"source_name": dataframe_name},
-        )
+        df = await get_or_reload_dataframe(lifespan_ctx, dataframe_name)
         if df is None:
             await ctx.error(
                 f"DataFrame '{dataframe_name}' not found in cache. Available names: {lifespan_ctx.get('available_dataframe_names', [])}"
@@ -264,14 +252,8 @@ async def get_schema(
     """
     try:
         lifespan_ctx: LifespanContext = ctx.request_context.lifespan_context
-        shared_cache = lifespan_ctx["shared_cache"]
-        server_name_for_cache = lifespan_ctx["server_name"]
 
-        df = await shared_cache.get_dataframe(
-            tool_name="datasource",
-            server_name=server_name_for_cache,
-            params={"source_name": dataframe_name},
-        )
+        df = await get_or_reload_dataframe(lifespan_ctx, dataframe_name)
         if df is None:
             await ctx.error(
                 f"DataFrame '{dataframe_name}' not found in cache. Available names: {lifespan_ctx.get('available_dataframe_names', [])}"
@@ -317,14 +299,8 @@ async def get_distinct_column_values(
     """
     try:
         lifespan_ctx: LifespanContext = ctx.request_context.lifespan_context
-        shared_cache = lifespan_ctx["shared_cache"]
-        server_name_for_cache = lifespan_ctx["server_name"]
 
-        df = await shared_cache.get_dataframe(
-            tool_name="datasource",
-            server_name=server_name_for_cache,
-            params={"source_name": dataframe_name},
-        )
+        df = await get_or_reload_dataframe(lifespan_ctx, dataframe_name)
         if df is None:
             await ctx.error(
                 f"DataFrame '{dataframe_name}' not found in cache. Available names: {lifespan_ctx.get('available_dataframe_names', [])}"

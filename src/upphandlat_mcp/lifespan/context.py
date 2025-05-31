@@ -29,6 +29,100 @@ class LifespanContext(TypedDict):
     server_name: str
 
 
+async def get_or_reload_dataframe(
+    lifespan_ctx: LifespanContext,
+    dataframe_name: str,
+) -> pl.DataFrame | None:
+    """
+    Get a dataframe from cache, or reload it if not found.
+    
+    Args:
+        lifespan_ctx: The lifespan context containing cache and config
+        dataframe_name: Name of the dataframe to retrieve
+        
+    Returns:
+        The dataframe if found/loaded successfully, None otherwise
+    """
+    shared_cache = lifespan_ctx["shared_cache"]
+    server_name = lifespan_ctx["server_name"]
+    
+    # First try to get from cache
+    df = await shared_cache.get_dataframe(
+        tool_name="datasource",
+        server_name=server_name,
+        params={"source_name": dataframe_name},
+    )
+    
+    if df is not None:
+        return df
+    
+    # If not in cache, try to reload from config
+    csv_sources_config = lifespan_ctx["csv_sources_config"]
+    source = None
+    
+    for src in csv_sources_config.sources:
+        if src.name == dataframe_name:
+            source = src
+            break
+    
+    if source is None:
+        logger.warning(f"No configuration found for dataframe '{dataframe_name}'")
+        return None
+    
+    try:
+        # Reload the dataframe using the same logic as in app_lifespan
+        read_options = source.read_csv_options.to_polars_args()
+        logger.info(f"Reloading dataframe '{dataframe_name}' from source")
+        
+        url_string = source.url
+        parsed_url = urlparse(url_string)
+        source_to_read: str | Path | BytesIO
+        
+        if parsed_url.scheme == "file":
+            file_path_str = parsed_url.path
+            source_to_read = Path(unquote(file_path_str))
+        elif parsed_url.scheme == "data":
+            uri_path_content = parsed_url.path
+            try:
+                media_type_and_encoding, actual_data_encoded = (
+                    uri_path_content.split(",", 1)
+                )
+            except ValueError:
+                raise ValueError(
+                    f"Invalid data URI format for source '{source.name}'"
+                )
+            
+            if "base64" in media_type_and_encoding.lower():
+                decoded_bytes = base64.b64decode(actual_data_encoded)
+                source_to_read = BytesIO(decoded_bytes)
+            else:
+                decoded_text_data = unquote(actual_data_encoded)
+                source_to_read = BytesIO(decoded_text_data.encode("utf-8"))
+        else:
+            source_to_read = url_string
+        
+        df = pl.read_csv(source_to_read, **read_options)
+        
+        # Store back in cache
+        await shared_cache.put_dataframe(
+            df=df,
+            tool_name="datasource",
+            server_name=server_name,
+            params={"source_name": source.name},
+            metadata={
+                "description": source.description or "",
+                "url": source.url,
+            },
+        )
+        
+        logger.info(f"Successfully reloaded and cached dataframe '{dataframe_name}'")
+        return df
+        
+    except Exception as e:
+        logger.error(f"Failed to reload dataframe '{dataframe_name}': {e}", exc_info=True)
+        return None
+
+
 @asynccontextmanager
 async def app_lifespan(server: FastMCP) -> AsyncIterator[LifespanContext]:
     global _global_lifespan_data_cache
