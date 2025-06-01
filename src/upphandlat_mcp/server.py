@@ -55,14 +55,20 @@ def run_mcp() -> None:
         try:
             mcp.run(transport=transport, port=app_settings.MCP_PORT)
             logger.info(f"MCP server '{mcp.name}' finished running.")
+        except Exception as e:  # noqa: BLE001
+            logger.critical(
+                f"MCP server '{mcp.name}' crashed: {e}",
+                exc_info=True,
+            )
+            raise
     else:
         logger.info(f"Starting MCP server '{mcp.name}' on {transport}...")
         try:
             mcp.run(transport=transport)
             logger.info(f"MCP server '{mcp.name}' finished running.")
-    except Exception as e:  # noqa: BLE001
-        logger.critical(
-            f"MCP server '{mcp.name}' crashed: {e}",
-            exc_info=True,
-        )
-        raise
+        except Exception as e:  # noqa: BLE001
+            logger.critical(
+                f"MCP server '{mcp.name}' crashed: {e}",
+                exc_info=True,
+            )
+            raise
