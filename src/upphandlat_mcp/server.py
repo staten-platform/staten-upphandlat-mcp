@@ -1,6 +1,7 @@
 """MCP server configuration and startup."""
 
 import logging
+import os
 from typing import Literal
 
 from mcp.server.fastmcp import FastMCP
@@ -39,6 +40,9 @@ mcp.tool()(aggregate_data)
 def run_mcp() -> None:
     """Run the MCP server using the configured transport."""
 
+    # Set port via environment variable for FastMCP
+    os.environ["PORT"] = str(app_settings.MCP_PORT)
+
     transport_str: str = app_settings.MCP_TRANSPORT
 
     # Type-safe transport validation
@@ -50,25 +54,13 @@ def run_mcp() -> None:
 
     transport: Literal["stdio", "sse", "streamable-http"] = transport_str  # type: ignore[assignment]
 
-    if transport == "streamable-http":
-        logger.info(f"Starting MCP server '{mcp.name}' on {transport} (port {app_settings.MCP_PORT})...")
-        try:
-            mcp.run(transport=transport, port=app_settings.MCP_PORT)
-            logger.info(f"MCP server '{mcp.name}' finished running.")
-        except Exception as e:  # noqa: BLE001
-            logger.critical(
-                f"MCP server '{mcp.name}' crashed: {e}",
-                exc_info=True,
-            )
-            raise
-    else:
-        logger.info(f"Starting MCP server '{mcp.name}' on {transport}...")
-        try:
-            mcp.run(transport=transport)
-            logger.info(f"MCP server '{mcp.name}' finished running.")
-        except Exception as e:  # noqa: BLE001
-            logger.critical(
-                f"MCP server '{mcp.name}' crashed: {e}",
-                exc_info=True,
-            )
-            raise
+    logger.info(f"Starting MCP server '{mcp.name}' on {transport}...")
+    try:
+        mcp.run(transport=transport)
+        logger.info(f"MCP server '{mcp.name}' finished running.")
+    except Exception as e:  # noqa: BLE001
+        logger.critical(
+            f"MCP server '{mcp.name}' crashed: {e}",
+            exc_info=True,
+        )
+        raise
