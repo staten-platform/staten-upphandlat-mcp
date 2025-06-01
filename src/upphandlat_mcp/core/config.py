@@ -114,6 +114,7 @@ class Settings(BaseSettings):
     MCP_PORT: int = Field(
         default=8000,
         description="Port to use for the MCP server when using streamable-http transport.",
+        alias="PORT",
     )
 
     @field_validator("MCP_TRANSPORT")
