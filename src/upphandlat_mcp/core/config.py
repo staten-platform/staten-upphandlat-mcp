@@ -81,7 +81,7 @@ class CsvSource(BaseModel):
         None, description="Optional description of the data source."
     )
     read_csv_options: ReadCsvOptions = Field(
-        default_factory=lambda: ReadCsvOptions(), # type: ignore
+        default_factory=lambda: ReadCsvOptions(),  # type: ignore
         description="Polars read_csv options for this source.",
     )
 
