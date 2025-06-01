@@ -50,10 +50,16 @@ def run_mcp() -> None:
 
     transport: Literal["stdio", "sse", "streamable-http"] = transport_str  # type: ignore[assignment]
 
-    logger.info(f"Starting MCP server '{mcp.name}' on {transport}...")
-    try:
-        mcp.run(transport=transport)
-        logger.info(f"MCP server '{mcp.name}' finished running.")
+    if transport == "streamable-http":
+        logger.info(f"Starting MCP server '{mcp.name}' on {transport} (port {app_settings.MCP_PORT})...")
+        try:
+            mcp.run(transport=transport, port=app_settings.MCP_PORT)
+            logger.info(f"MCP server '{mcp.name}' finished running.")
+    else:
+        logger.info(f"Starting MCP server '{mcp.name}' on {transport}...")
+        try:
+            mcp.run(transport=transport)
+            logger.info(f"MCP server '{mcp.name}' finished running.")
     except Exception as e:  # noqa: BLE001
         logger.critical(
             f"MCP server '{mcp.name}' crashed: {e}",
