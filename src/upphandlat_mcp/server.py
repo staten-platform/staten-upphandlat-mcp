@@ -40,10 +40,14 @@ mcp.tool()(aggregate_data)
 def run_mcp() -> None:
     """Run the MCP server using the configured transport."""
 
-    # Set port via environment variable for FastMCP
-    os.environ["PORT"] = str(app_settings.MCP_PORT)
-
     transport_str: str = app_settings.MCP_TRANSPORT
+    
+    # Only set port for HTTP transports
+    if transport_str == "streamable-http":
+        os.environ["PORT"] = str(app_settings.MCP_PORT)
+        logger.info(f"Using port {app_settings.MCP_PORT} for {transport_str} transport")
+    else:
+        logger.info(f"Using {transport_str} transport (no port needed)")
 
     # Type-safe transport validation
     valid_transports = {"stdio", "sse", "streamable-http"}
