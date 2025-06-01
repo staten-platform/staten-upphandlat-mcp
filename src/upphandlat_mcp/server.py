@@ -6,9 +6,13 @@ from typing import Literal
 
 from upphandlat_mcp.core.config import settings as app_settings
 
-# Set PORT environment variable before importing FastMCP
+# Set multiple port-related environment variables before importing FastMCP
 # This ensures FastMCP reads the correct port at instantiation time
-os.environ["PORT"] = str(app_settings.MCP_PORT)
+port_str = str(app_settings.MCP_PORT)
+os.environ["PORT"] = port_str
+os.environ["UVICORN_PORT"] = port_str
+os.environ["HOST"] = "127.0.0.1"
+os.environ["UVICORN_HOST"] = "127.0.0.1"
 
 from mcp.server.fastmcp import FastMCP
 from upphandlat_mcp.lifespan.context import app_lifespan
@@ -26,6 +30,9 @@ logger = logging.getLogger(__name__)
 # Log port configuration at module level to help debug FastMCP instantiation
 logger.info(
     f"[SERVER.PY TOP LEVEL] os.environ['PORT'] before FastMCP instantiation: {os.getenv('PORT')}"
+)
+logger.info(
+    f"[SERVER.PY TOP LEVEL] os.environ['UVICORN_PORT'] before FastMCP instantiation: {os.getenv('UVICORN_PORT')}"
 )
 logger.info(
     f"[SERVER.PY TOP LEVEL] app_settings.MCP_PORT before FastMCP instantiation: {app_settings.MCP_PORT}"
