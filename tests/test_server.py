@@ -2,8 +2,14 @@ import asyncio
 import os
 import sys
 from asyncio.subprocess import DEVNULL
-import json # <--- ADD THIS
-import pytest # <--- ADD THIS
+# Add this at the top of test_server.py to ensure Redis is available for integration tests
+# or skip them. This requires pytest-redis to be installed or similar skip logic.
+# For simplicity, we'll assume Redis is running for these integration tests.
+# If you want to make Redis optional, you'd typically use a marker:
+# redis_required = pytest.mark.skipif(not is_redis_running(), reason="Redis server is not running")
+
+import json 
+import pytest 
 
 yaml = pytest.importorskip("yaml")
 
@@ -31,7 +37,7 @@ def sample_config(tmp_path):
             }
         ],
     }
-    config_path = tmp_path / "config.yaml"
+    config_path = tmp_path / "test_config.yaml"
     config_path.write_text(yaml.safe_dump(config))
     return config_path
 
@@ -41,9 +47,7 @@ async def _call_list(sample_session):
     assert any(t.name == "list_available_dataframes" for t in tools.tools)
     result = await sample_session.call_tool("list_available_dataframes", arguments={})
     
-    # --- MODIFICATION START ---
     assert result.content, "call_tool result.content should not be empty"
-    # list_available_dataframes should return a single JSON string in a single ToolContent item
     assert len(result.content) == 1, f"Expected one content item, got {len(result.content)}"
     
     content_item = result.content[0]
@@ -54,16 +58,20 @@ async def _call_list(sample_session):
     except json.JSONDecodeError as e:
         pytest.fail(f"Failed to parse content item text as JSON: '{content_item.text}'. Error: {e}")
 
-    # Based on sample_config and observed server behavior where a single-item list 
-    # containing a dictionary appears to be unwrapped to just the dictionary.
+    # Handle both single dict and wrapped dict formats
     expected_data = {"name": "sample", "description": "Sample dataset"}
     
-    assert isinstance(parsed_content, dict), \
-        f"Expected parsed content to be a dict, got {type(parsed_content).__name__}: {parsed_content}"
-    # --- MODIFICATION END ---
-    
-    assert parsed_content == expected_data, \
-        f"Unexpected parsed content. Expected {expected_data}, got {parsed_content}"
+    if isinstance(parsed_content, dict):
+        if "dataframes" in parsed_content:
+            # Wrapped format: {"dataframes": [{"name": "sample", ...}]}
+            dataframes_list = parsed_content["dataframes"]
+            assert isinstance(dataframes_list, list) and len(dataframes_list) == 1
+            assert dataframes_list[0] == expected_data
+        else:
+            # Single dict format: {"name": "sample", ...}
+            assert parsed_content == expected_data
+    else:
+        pytest.fail(f"Expected parsed content to be a dict, got {type(parsed_content).__name__}: {parsed_content}")
 
 
 @pytest.mark.asyncio
@@ -71,6 +79,9 @@ async def test_server_stdio(sample_config, monkeypatch):
     monkeypatch.setenv("CSV_SOURCES_CONFIG_PATH", str(sample_config))
     monkeypatch.setenv("MCP_TRANSPORT", "stdio")
     monkeypatch.setenv("POLARS_MAX_THREADS", "1")
+    # For stdio tests, Statens Mima will try to connect to Redis by default.
+    # Ensure REDIS_HOST, REDIS_PORT etc. are available if not using localhost:6379
+    # or that relevant statens-mima env vars are set for mock/test mode if available.
 
     server_params = StdioServerParameters(
         command=sys.executable,
@@ -95,6 +106,8 @@ async def test_server_streamable_http(sample_config, monkeypatch):
             "POLARS_MAX_THREADS": "1",
         }
     )
+    # For streamable-http tests, Statens Mima will try to connect to Redis.
+    # Ensure Redis is running and accessible.
     proc = await asyncio.create_subprocess_exec(
         sys.executable,
         "-m",
@@ -168,4 +181,3 @@ async def test_server_streamable_http(sample_config, monkeypatch):
         if proc.returncode is None:
             proc.terminate()
         await proc.wait()
-

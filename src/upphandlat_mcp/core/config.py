@@ -81,7 +81,7 @@ class CsvSource(BaseModel):
         None, description="Optional description of the data source."
     )
     read_csv_options: ReadCsvOptions = Field(
-        default_factory=lambda: ReadCsvOptions(), # type: ignore
+        default_factory=lambda: ReadCsvOptions(),  # type: ignore
         description="Polars read_csv options for this source.",
     )
 
@@ -110,6 +110,11 @@ class Settings(BaseSettings):
         default="stdio",
         description="Transport to use for the MCP server. \n"
         "Accepted values: 'stdio' or 'streamable-http'.",
+    )
+    MCP_PORT: int = Field(
+        default=8000,
+        description="Port to use for the MCP server when using streamable-http transport.",
+        alias="PORT",
     )
 
     @field_validator("MCP_TRANSPORT")

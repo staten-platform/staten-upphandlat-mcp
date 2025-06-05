@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import sys
+import yaml
 from pathlib import Path
 from typing import Any # Added for type hint
 
@@ -275,8 +276,8 @@ def sample_config(tmp_path: Path) -> Path:
             }
         ],
     }
-    config_path = tmp_path / "config.json"
-    config_path.write_text(json.dumps(config))
+    config_path = tmp_path / "test_config.yaml"
+    config_path.write_text(yaml.safe_dump(config))
     return config_path
 
 
@@ -289,6 +290,9 @@ async def test_chatbot_integration(
     # TEST_INTEGRATION_VERBOSE is also loaded by conftest, but we explicitly set it to "1"
     # here to ensure verbosity for this specific test, overriding any .env setting.
     monkeypatch.setenv("TEST_INTEGRATION_VERBOSE", "1")
+    # NOTE: This integration test runs the full server as a subprocess.
+    # With the statens-mima cache integration, this means a Redis server
+    # must be running and accessible for the cache to initialize in the subprocess.
     monkeypatch.setenv("CSV_SOURCES_CONFIG_PATH", str(sample_config))
     monkeypatch.setenv("MCP_TRANSPORT", "streamable-http")
 
@@ -326,6 +330,9 @@ async def test_chatbot_integration_stdio(
     # TEST_INTEGRATION_VERBOSE is also loaded by conftest, but we explicitly set it to "1"
     # here to ensure verbosity for this specific test, overriding any .env setting.
     monkeypatch.setenv("TEST_INTEGRATION_VERBOSE", "1")
+    # NOTE: This integration test runs the full server as a subprocess.
+    # With the statens-mima cache integration, this means a Redis server
+    # must be running and accessible for the cache to initialize in the subprocess.
     monkeypatch.setenv("CSV_SOURCES_CONFIG_PATH", str(sample_config))
     monkeypatch.setenv("MCP_TRANSPORT", "stdio")
 

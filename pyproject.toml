@@ -3,27 +3,23 @@ name = "upphandlat-mcp"
 version = "0.1.0"
 description = "MCP server for CSV aggregation and analysis using Polars"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.10"
 dependencies = [
     "fastapi>=0.115.12",
-    "anthropic",
     "mcp[cli]>=1.6.0",
-    "polars>=0.19.0",
+    "polars>=1.2.0",
     "pydantic>=2.0",
     "pydantic-settings>=2.0",
     "python-dotenv>=1.0.0",
     "pyyaml>=6.0.2",
     "rapidfuzz>=3.13.0",
-    "streamlit>=1.45.1",
+    "statens-mima",
+    "statens-response",
 ]
 authors = [
     { name = "Hugi Aegisberg", email = "hugi@sensestack.xyz" }
 ]
-
 license = { text = "Apache-2.0" }
-
-[tool.setuptools.packages.find]
-where = ["src"]
 
 [project.urls]
 "Homepage" = "https://github.com/aerugo/upphandlat-mcp"
@@ -31,6 +27,31 @@ where = ["src"]
 
 [project.scripts]
 upphandlat-mcp = "upphandlat_mcp:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.7.0",
+    "types-pyyaml>=6.0.12",
+]
+examples = [
+    "anthropic",
+    "streamlit>=1.45.1",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.uv.sources]
+statens-mima = { workspace = true }
+statens-response = { workspace = true }
 
 [tool.ruff]
 line-length = 88
@@ -40,22 +61,51 @@ select = ["E", "F", "W", "I", "UP", "PL", "PYI"]
 
 [tool.pyright]
 include = ["src/upphandlat_mcp"]
-pythonVersion = "3.13"
+pythonVersion = "3.10"
 reportMissingImports = "warning"
 reportTypedDictNotRequiredAccess = "none"
 
-[tool.uv]
-dev-dependencies = [
-    "pytest>=8.3.3",
-    "pytest-asyncio>=0.21.0",
-    "ruff>=0.6.9",
+# Strict mypy configuration
+[tool.mypy]
+mypy_path = "src"
+packages = ["upphandlat_mcp"]
+python_version = "3.10"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+show_error_codes = true
+show_column_numbers = true
+pretty = true
+
+# Handle third-party libraries without type stubs
+[[tool.mypy.overrides]]
+module = [
+    "fastapi.*",
+    "mcp.*",
+    "polars.*",
+    "pydantic.*",
+    "pydantic_settings.*",
+    "rapidfuzz.*",
+    "statens_mima.*",
+    "statens_response.*",
 ]
+ignore_missing_imports = true
+
+# Allow less strict typing in test files
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
-
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
