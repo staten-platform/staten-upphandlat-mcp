@@ -1,11 +1,10 @@
+import os
 from pathlib import Path
 from typing import Any, Literal
 
 import polars as pl
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 POLARS_DTYPE_MAP = {
     "Utf8": pl.Utf8,
@@ -105,7 +104,16 @@ class Settings(BaseSettings):
     Application settings.
     """
 
-    CSV_SOURCES_CONFIG_PATH: Path = PROJECT_ROOT / "csv_sources.yaml"
+    LOCAL_DEV_PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent.parent.parent
+
+    CSV_SOURCES_CONFIG_PATH: Path = Field(
+        default_factory=lambda: Path(
+            os.getenv(
+                "CSV_SOURCES_CONFIG_PATH",
+                Settings.LOCAL_DEV_PROJECT_ROOT / "csv_sources.yaml",
+            )
+        )
+    )
     MCP_TRANSPORT: Literal["stdio", "streamable-http"] = Field(
         default="stdio",
         description="Transport to use for the MCP server. \n"
