@@ -1,21 +1,17 @@
-"""MCP server configuration and startup."""
+"""
+Upphandlat MCP Server: Main application entry point and health checks.
+"""
 
 import logging
 import os
-from typing import Literal
-
-from upphandlat_mcp.core.config import settings as app_settings
-
-# Set multiple port-related environment variables before importing FastMCP
-# This ensures FastMCP reads the correct port at instantiation time
-port_str = str(app_settings.MCP_PORT)
-os.environ["PORT"] = port_str
-os.environ["UVICORN_PORT"] = port_str
-os.environ["HOST"] = "127.0.0.1"
-os.environ["UVICORN_HOST"] = "127.0.0.1"
+import sys
 
 from mcp.server.fastmcp import FastMCP
+
+# Lifespan manager handles all startup logic (data loading, cache connection)
 from upphandlat_mcp.lifespan.context import app_lifespan
+
+# Import all tools
 from upphandlat_mcp.tools.aggregation_tools import aggregate_data
 from upphandlat_mcp.tools.info_tools import (
     fuzzy_search_column_values,
@@ -27,23 +23,9 @@ from upphandlat_mcp.tools.info_tools import (
 
 logger = logging.getLogger(__name__)
 
-# Log port configuration at module level to help debug FastMCP instantiation
-logger.info(
-    f"[SERVER.PY TOP LEVEL] os.environ['PORT'] before FastMCP instantiation: {os.getenv('PORT')}"
-)
-logger.info(
-    f"[SERVER.PY TOP LEVEL] os.environ['UVICORN_PORT'] before FastMCP instantiation: {os.getenv('UVICORN_PORT')}"
-)
-logger.info(
-    f"[SERVER.PY TOP LEVEL] app_settings.MCP_PORT before FastMCP instantiation: {app_settings.MCP_PORT}"
-)
-
 mcp = FastMCP(
     name="UpphandlatMultiCSV_MCP",
-    description=(
-        "A server for querying and aggregating data from multiple CSV files "
-        "(loaded via URLs) using Polars."
-    ),
+    description="A server for querying and aggregating data from multiple CSV files.",
     lifespan=app_lifespan,
     json_response=True,
     stateless_http=True,
@@ -57,40 +39,30 @@ mcp.tool()(fuzzy_search_column_values)
 mcp.tool()(aggregate_data)
 
 
-def run_mcp() -> None:
-    """Run the MCP server using the configured transport."""
+def main() -> None:
+    """
+    Main entry point, primarily for local development using `stdio` transport.
 
-    transport_str: str = app_settings.MCP_TRANSPORT
-    
-    # Type-safe transport validation
-    valid_transports = {"stdio", "sse", "streamable-http"}
-    if transport_str not in valid_transports:
-        err_msg = f"Invalid transport '{transport_str}'. Must be one of: {valid_transports}"
-        logger.critical(err_msg)
-        raise ValueError(err_msg)
+    In a production Docker environment, this function is NOT called.
+    Instead, `uvicorn` is invoked directly in the Dockerfile's CMD.
+    """
+    transport = os.getenv("MCP_TRANSPORT", "stdio").lower()
 
-    transport: Literal["stdio", "sse", "streamable-http"] = transport_str  # type: ignore[assignment]
-
-    logger.info(f"Starting MCP server '{mcp.name}' on {transport}...")
-    
-    # Log current environment state for PORT before deciding how to run
-    logger.info(f"[run_mcp PRE-RUN] os.environ['PORT'] from env: {os.getenv('PORT')}")
-    logger.info(f"[run_mcp PRE-RUN] app_settings.MCP_PORT from config: {app_settings.MCP_PORT}")
-
-    try:
-        if transport == "streamable-http":
-            logger.info(f"Using {transport} transport on port {app_settings.MCP_PORT}")
-            # PORT environment variable was already set at module level before FastMCP instantiation
-            mcp.run(transport=transport)
-        else:
-            # For stdio or other transports, host/port are not typically passed to run()
-            logger.info(f"Using {transport} transport (no port needed)")
-            mcp.run(transport=transport)
-        
-        logger.info(f"MCP server '{mcp.name}' finished running.")  # This logs on graceful shutdown
-    except Exception as e:  # noqa: BLE001
-        logger.critical(
-            f"MCP server '{mcp.name}' crashed: {e}",
-            exc_info=True,
+    if transport == "stdio":
+        logging.info("[Upphandlat MCP] Starting in stdio mode.")
+        mcp.run(transport="stdio")
+    else:
+        port = os.getenv("PORT", "8005")
+        print(
+            f"\n[Upphandlat MCP] To run in HTTP mode, use the 'uvicorn' command:\n"
+            f"uvicorn upphandlat_mcp.server:mcp.app --host 0.0.0.0 --port {port}\n",
+            file=sys.stderr,
         )
-        raise
+
+
+def run_mcp():
+    main()
+
+
+if __name__ == "__main__":
+    main()

@@ -125,6 +125,11 @@ class Settings(BaseSettings):
         alias="PORT",
     )
 
+    MIMA_REDIS_URL: str = Field(
+        default="redis://localhost:6379/0",
+        description="URL for the Redis cache used by Statens Mima.",
+    )
+
     @field_validator("MCP_TRANSPORT")
     @classmethod
     def validate_transport(cls, v: str) -> str:

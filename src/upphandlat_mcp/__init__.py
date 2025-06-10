@@ -3,6 +3,7 @@ import sys
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     # dotenv is optional, continue without it if not installed
