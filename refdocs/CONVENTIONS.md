@@ -1513,7 +1513,7 @@ description = "My MCP server with streamable HTTP"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "mcp[cli]>=1.0.0",
+    "mcp[cli]>=1.9.3",
     "pydantic>=2.0.0",
     "httpx>=0.27.0"
 ]
