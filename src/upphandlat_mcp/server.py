@@ -7,11 +7,9 @@ import os
 import sys
 
 from mcp.server.fastmcp import FastMCP
-
-# Lifespan manager handles all startup logic (data loading, cache connection)
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 from upphandlat_mcp.lifespan.context import app_lifespan
-
-# Import all tools
 from upphandlat_mcp.tools.aggregation_tools import aggregate_data
 from upphandlat_mcp.tools.info_tools import (
     fuzzy_search_column_values,
@@ -30,6 +28,15 @@ mcp = FastMCP(
     json_response=True,
     stateless_http=True,
 )
+app = mcp.streamable_http_app()
+
+
+async def health_check(request: Request) -> JSONResponse:
+    """A simple health check endpoint that returns a 200 OK response."""
+    return JSONResponse({"status": "ready"})
+
+
+app.add_route("/health/ready", health_check, methods=["GET"])
 
 mcp.tool()(list_available_dataframes)
 mcp.tool()(list_columns)
@@ -55,7 +62,7 @@ def main() -> None:
         port = os.getenv("PORT", "8005")
         print(
             f"\n[Upphandlat MCP] To run in HTTP mode, use the 'uvicorn' command:\n"
-            f"uvicorn upphandlat_mcp.server:mcp.app --host 0.0.0.0 --port {port}\n",
+            f"uvicorn upphandlat_mcp.server:app --host 0.0.0.0 --port {port}\n",
             file=sys.stderr,
         )
 
