@@ -16,9 +16,10 @@ COPY src /app/src
 
 # Accept GH_TOKEN for private repo install
 ARG GH_TOKEN
+ENV GH_TOKEN=${GH_TOKEN}
 
 # Install dependencies using uv
-RUN GH_TOKEN=${GH_TOKEN} uv sync
+RUN uv sync
 
 # Create non-root user and set permissions
 RUN adduser --system --group --home /home/app app && \
