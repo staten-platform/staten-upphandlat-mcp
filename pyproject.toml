@@ -15,7 +15,7 @@ dependencies = [
     "pyyaml>=6.0.2",
     "rapidfuzz>=3.13.0",
     "statens-mima @ git+https://${GH_TOKEN}@github.com/staten-platform/statens-mima.git@main",
-    "statens-response @ git+https://${GH_TOKEN}@github.com/staten-platform/statens-response.git@main",
+    "statens-response @ git+https://${GH_TOKEN}@github.com/staten-platform/statens-response.git@main"
 ]
 authors = [
     { name = "Hugi Aegisberg", email = "hugi@sensestack.xyz" }
