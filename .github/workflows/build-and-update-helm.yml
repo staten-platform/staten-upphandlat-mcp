@@ -1,0 +1,19 @@
+name: "CI: Build Image & Update Helm Chart"
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  ci:
+    name: Build and Deploy
+    # Use the reusable workflow
+    uses: staten-platform/ci-templates/.github/workflows/docker-helm-template.yaml@main
+    with:
+      image_name: kolada-mcp
+      helm_chart_path: helm-kolada-mcp
+      registry: registry.digitalocean.com/staten
+    secrets:
+      DIGITALOCEAN_TOKEN: ${{ secrets.DIGITALOCEAN_TOKEN }}
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      STATEN_ARGOCD_APPS_TOKEN: ${{ secrets.STATEN_ARGOCD_APPS_TOKEN }}
