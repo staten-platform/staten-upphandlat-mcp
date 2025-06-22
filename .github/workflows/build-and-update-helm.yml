@@ -2,7 +2,12 @@ name: "CI: Build Image & Update Helm Chart"
 
 on:
   push:
-    branches: refactor/prepare-for-ci
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
 
 env:
   # Use docker.io for Docker Hub if empty
@@ -62,6 +67,7 @@ jobs:
     name: Update Helm Chart
     needs: build
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
 
     steps:
       - name: Download version file
@@ -73,12 +79,21 @@ jobs:
         run: |
           APP_VERSION=$(cat app_version.txt)
           echo "APP_VERSION=${APP_VERSION}" >> $GITHUB_ENV
-      # Use token for https://github.com/staten-platform/staten-argocd-apps
+
       - name: Checkout Helm chart repository
         uses: actions/checkout@v4
         with:
           repository: staten-platform/staten-argocd-apps
           token: ${{ secrets.STATEN_ARGOCD_APPS_TOKEN }}
+
+      - name: Validate Helm Chart syntax
+        run: |
+          cd helm-upphandlat-mcp
+          helm lint .
+
+      - name: Verify Docker image exists
+        run: |
+          docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.APP_VERSION }}
 
       - name: Update Helm chart values
         run: |
