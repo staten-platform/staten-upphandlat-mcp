@@ -1,4 +1,4 @@
-name: "CI: Build Image & Update Helm Chart"
+name: "CI Pipeline: Build Docker Image and Update Helm Chart"
 
 on:
   push:
@@ -7,7 +7,6 @@ on:
   pull_request:
     branches:
       - main
-  workflow_dispatch:
 
 env:
   REGISTRY: registry.digitalocean.com/staten
@@ -69,3 +68,52 @@ jobs:
         with:
           name: app-version
           path: app_version.txt
+
+  update-helm:
+    name: Update Helm Chart
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download version file
+        uses: actions/download-artifact@v4
+        with:
+          name: app-version
+
+      - name: Load extracted version
+        id: load_version
+        run: |
+          APP_VERSION=$(cat app_version.txt)
+          echo "::set-output name=app_version::${APP_VERSION}"
+
+      - name: Checkout Helm chart repository
+        uses: actions/checkout@v4
+        with:
+          repository: staten-platform/staten-argocd-apps
+          token: ${{ secrets.STATEN_ARGOCD_APPS_TOKEN }}
+
+      - name: Validate Helm Chart syntax
+        run: |
+          cd helm-upphandlat-mcp
+          helm lint .
+
+      - name: Verify Docker image exists
+        run: |
+          docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.app_version }}
+
+      - name: Update Helm chart values
+        run: |
+          cd helm-upphandlat-mcp
+          echo "Updating Helm chart to appVersion=${{ needs.setup.outputs.app_version }}"
+          sed -i "s/^appVersion:.*/appVersion: \"${{ needs.setup.outputs.app_version }}\"/" Chart.yaml
+
+      - name: Configure Git
+        run: |
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+          git config --global user.name "${{ github.actor }}"
+
+      - name: Commit and push Helm chart changes
+        run: |
+          git add .
+          git commit -m "Update Helm chart to appVersion=${{ needs.setup.outputs.app_version }}"
+          git push
