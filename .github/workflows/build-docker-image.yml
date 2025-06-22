@@ -1,0 +1,71 @@
+name: "CI: Build Image & Update Helm Chart"
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  REGISTRY: registry.digitalocean.com/staten
+  IMAGE_NAME: upphandlat-mcp
+
+jobs:
+  setup:
+    name: Setup Environment
+    runs-on: ubuntu-latest
+    outputs:
+      app_version: ${{ steps.extract_version.outputs.app_version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract version from pyproject.toml
+        id: extract_version
+        run: |
+          version=$(grep '^version\s*=' pyproject.toml | sed -E 's/version\s*=\s*"(.*)"/\1/')
+          echo "::set-output name=app_version::${version}"
+
+  build:
+    name: Build and Push Docker Image
+    needs: setup
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure Docker Registry Auth
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: doo
+          password: ${{ secrets.DIGITALOCEAN_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.app_version }}
+          build-args: |
+            GH_TOKEN=${{ secrets.GH_TOKEN }}
+
+      - name: Save version to artifact
+        run: |
+          echo "${{ needs.setup.outputs.app_version }}" > app_version.txt
+
+      - name: Upload version file
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-version
+          path: app_version.txt
