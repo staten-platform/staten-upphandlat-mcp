@@ -5,6 +5,8 @@ description = "MCP server for CSV aggregation and analysis using Polars"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
 dependencies = [
+    "statens-mima @ git+https://${GH_TOKEN}@github.com/staten-platform/statens-mima.git@main",
+    "statens-response @ git+https://${GH_TOKEN}@github.com/staten-platform/statens-response.git@main",
     "fastapi>=0.115.12",
     "httpx>=0.28.1",
     "mcp[cli]>=1.9.3",
@@ -14,8 +16,6 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "pyyaml>=6.0.2",
     "rapidfuzz>=3.13.0",
-    "statens-mima @ git+https://${GH_TOKEN}@github.com/staten-platform/statens-mima.git@main",
-    "statens-response @ git+https://${GH_TOKEN}@github.com/staten-platform/statens-response.git@main"
 ]
 authors = [
     { name = "Hugi Aegisberg", email = "hugi@sensestack.xyz" }
@@ -46,10 +46,6 @@ examples = [
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
-
-[tool.uv.sources]
-statens-mima = { git = "https://${GH_TOKEN}@github.com/staten-platform/statens-mima.git", rev = "main" }
-statens-response = { git = "https://${GH_TOKEN}@github.com/staten-platform/statens-response.git", rev = "main" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
