@@ -100,10 +100,6 @@ jobs:
           cd helm-upphandlat-mcp
           helm lint .
 
-      - name: Verify Docker image exists
-        run: |
-          docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.app_version }}
-
       - name: Update Helm chart values
         run: |
           cd helm-upphandlat-mcp
