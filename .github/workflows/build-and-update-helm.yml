@@ -10,8 +10,8 @@ jobs:
     # Use the reusable workflow
     uses: staten-platform/ci-templates/.github/workflows/docker-helm-template.yaml@main
     with:
-      image_name: kolada-mcp
-      helm_chart_path: helm-kolada-mcp
+      image_name: upphandlat-mcp
+      helm_chart_path: helm-upphandlat-mcp
       registry: registry.digitalocean.com/staten
     secrets:
       DIGITALOCEAN_TOKEN: ${{ secrets.DIGITALOCEAN_TOKEN }}
