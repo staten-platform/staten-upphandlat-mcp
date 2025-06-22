@@ -24,7 +24,13 @@ jobs:
         id: extract_version
         run: |
           version=$(grep '^version\s*=' pyproject.toml | sed -E 's/version\s*=\s*"(.*)"/\1/')
-          echo "app_version=${version}" >> $GITHUB_ENV
+          echo "${version}" > app_version.txt
+
+      - name: Upload version artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-version
+          path: app_version.txt
 
   build:
     name: Build and Push Docker Image
@@ -32,6 +38,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Download version artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-version
+
+      - name: Load version from artifact
+        run: |
+          APP_VERSION=$(cat app_version.txt)
+          echo "app_version=${APP_VERSION}" >> $GITHUB_ENV
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -63,6 +79,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Download version artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-version
+
+      - name: Load version from artifact
+        run: |
+          APP_VERSION=$(cat app_version.txt)
+          echo "app_version=${APP_VERSION}" >> $GITHUB_ENV
+
       - name: Checkout Helm chart repository
         uses: actions/checkout@v4
         with:
