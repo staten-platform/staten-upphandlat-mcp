@@ -16,8 +16,6 @@ jobs:
   setup:
     name: Setup Environment
     runs-on: ubuntu-latest
-    outputs:
-      app_version: ${{ steps.extract_version.outputs.app_version }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -26,7 +24,7 @@ jobs:
         id: extract_version
         run: |
           version=$(grep '^version\s*=' pyproject.toml | sed -E 's/version\s*=\s*"(.*)"/\1/')
-          echo "::set-output name=app_version::${version}"
+          echo "app_version=${version}" >> $GITHUB_ENV
 
   build:
     name: Build and Push Docker Image
@@ -55,19 +53,9 @@ jobs:
         with:
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.app_version }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.app_version }}
           build-args: |
             GH_TOKEN=${{ secrets.GH_TOKEN }}
-
-      - name: Save version to artifact
-        run: |
-          echo "${{ needs.setup.outputs.app_version }}" > app_version.txt
-
-      - name: Upload version file
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-version
-          path: app_version.txt
 
   update-helm:
     name: Update Helm Chart
@@ -75,17 +63,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download version file
-        uses: actions/download-artifact@v4
-        with:
-          name: app-version
-
-      - name: Load extracted version
-        id: load_version
-        run: |
-          APP_VERSION=$(cat app_version.txt)
-          echo "::set-output name=app_version::${APP_VERSION}"
-
       - name: Checkout Helm chart repository
         uses: actions/checkout@v4
         with:
@@ -99,13 +76,13 @@ jobs:
 
       - name: Verify Docker image exists
         run: |
-          docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.app_version }}
+          docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.app_version }}
 
       - name: Update Helm chart values
         run: |
           cd helm-upphandlat-mcp
-          echo "Updating Helm chart to appVersion=${{ needs.setup.outputs.app_version }}"
-          sed -i "s/^appVersion:.*/appVersion: \"${{ needs.setup.outputs.app_version }}\"/" Chart.yaml
+          echo "Updating Helm chart to appVersion=${{ env.app_version }}"
+          sed -i "s/^appVersion:.*/appVersion: \"${{ env.app_version }}\"/" Chart.yaml
 
       - name: Configure Git
         run: |
@@ -115,5 +92,5 @@ jobs:
       - name: Commit and push Helm chart changes
         run: |
           git add .
-          git commit -m "Update Helm chart to appVersion=${{ needs.setup.outputs.app_version }}"
+          git commit -m "Update Helm chart to appVersion=${{ env.app_version }}"
           git push
