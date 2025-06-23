@@ -21,13 +21,23 @@ from upphandlat_mcp.tools.info_tools import (
 
 logger = logging.getLogger(__name__)
 
+# Create MCP instance - Remove stateless_http=True as it may cause initialization issues
 mcp = FastMCP(
     name="UpphandlatMultiCSV_MCP",
     description="A server for querying and aggregating data from multiple CSV files.",
     lifespan=app_lifespan,
     json_response=True,
-    stateless_http=True,
 )
+
+# Register tools
+mcp.tool()(list_available_dataframes)
+mcp.tool()(list_columns)
+mcp.tool()(get_schema)
+mcp.tool()(get_distinct_column_values)
+mcp.tool()(fuzzy_search_column_values)
+mcp.tool()(aggregate_data)
+
+# Get the ASGI app
 app = mcp.streamable_http_app()
 
 
@@ -36,14 +46,8 @@ async def health_check(request: Request) -> JSONResponse:
     return JSONResponse({"status": "ready"})
 
 
+# Add health check route
 app.add_route("/health/ready", health_check, methods=["GET"])
-
-mcp.tool()(list_available_dataframes)
-mcp.tool()(list_columns)
-mcp.tool()(get_schema)
-mcp.tool()(get_distinct_column_values)
-mcp.tool()(fuzzy_search_column_values)
-mcp.tool()(aggregate_data)
 
 
 def main() -> None:
