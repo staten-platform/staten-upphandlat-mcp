@@ -1,0 +1,38 @@
+toolbox_title: "Upphandlingsdata från Sveriges Upphandlingsmyndighet"
+toolbox_description: "Verktyg för att analysera data om offentliga upphandlingar i Sverige, inklusive antal, värde och leverantörsinformation från Upphandlingsmyndigheten." 
+sources:
+  - name: "upphandlingsmyndigheten_antal_upphandlingar"
+    url: "https://catalog.upphandlingsmyndigheten.se/store/12/resource/128" 
+    description: "Totalt antal upphandlingar per år och sektor. Används för övergripande analyser av upphandlingsmönster."
+    read_csv_options:
+      separator: ";"
+      schema_overrides:
+        "Organisationsnummer för köpare": "Utf8"
+  - name: "kontrakterade_anbud_med_leverantorer_upphandlingsmyndigheten"
+    url: "https://catalog.upphandlingsmyndigheten.se/store/12/resource/135" 
+    description: "Kontrakterade anbud med leverantörer - vunna upphandlingar. Används för att analysera vilka leverantörer som vunnit upphandlingar."
+    read_csv_options:
+      separator: ";"
+      schema_overrides:
+        "Organisationsnummer för köpare": "Utf8"
+  - name: "antal_anbud_upphandlingsmyndigheten"
+    url: "https://catalog.upphandlingsmyndigheten.se/store/12/resource/141" 
+    description: "Antal anbud per upphandling. Används för att analysera konkurrensen i upphandlingar."
+    read_csv_options:
+      separator: ";"
+      schema_overrides:
+        "Organisationsnummer för köpare": "Utf8"
+  - name: "kontrakterade_anbud_upphandlingsmyndigheten"
+    url: "https://catalog.upphandlingsmyndigheten.se/store/12/resource/122" 
+    description: "Kontrakterade anbud - vunna upphandlingar. Saknar information om leverantörer. Används för att analysera vunna upphandlingar utan specificerade leverantörer."
+    read_csv_options:
+      separator: ";"
+      schema_overrides:
+        "Organisationsnummer för köpare": "Utf8"
+  - name: "kontrakterat_varde_upphandlingsmyndigheten"
+    url: "https://catalog.upphandlingsmyndigheten.se/store/12/resource/131" 
+    description: "Kontrakterat värde.  Används för att analysera det totala värdet av vunna upphandlingar."
+    read_csv_options:
+      separator: ";"
+      schema_overrides:
+        "Organisationsnummer för köpare": "Utf8"
