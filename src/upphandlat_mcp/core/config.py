@@ -110,7 +110,7 @@ class Settings(BaseSettings):
         default_factory=lambda: Path(
             os.getenv(
                 "CSV_SOURCES_CONFIG_PATH",
-                LOCAL_DEV_PROJECT_ROOT / "csv_sources.yaml",
+                LOCAL_DEV_PROJECT_ROOT / "src/csv_sources.yaml",
             )
         )
     )
