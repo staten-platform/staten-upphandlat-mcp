@@ -45,7 +45,7 @@ class LLMClient:
         tools_param: list[dict[str, Any]] | None = None, # For Anthropic tool definitions
     ) -> str:
         if self.USE_ANTHROPIC_IN_TEST and self.api_key and self.anthropic_client:
-            model_name = "claude-sonnet-4-20250514" # Or "claude-3-haiku-20240307" for reliable tool use
+            model_name = "claude-sonnet-4-6" # Or "claude-3-haiku-20240307" for reliable tool use
             max_tokens_to_sample = 1024 # Increased max_tokens
 
             # --- MODIFICATION START: Separate system prompt from messages ---
